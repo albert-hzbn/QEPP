@@ -15,13 +15,25 @@ find_path(SPGLIB_INC spglib.h)
 add_executable(
 	qepp
 	src/main.cpp
-	src/utils.cpp
-	src/cif.cpp
-	src/qe_input.cpp
-	src/dos.cpp
-	src/band.cpp
-	src/elastic.cpp
-	src/charge.cpp
+	src/io/cli/dispatch.cpp
+	src/io/cli/cif.cpp
+	src/io/cli/dos.cpp
+	src/io/cli/band.cpp
+	src/io/cli/elastic.cpp
+	src/io/cli/charge.cpp
+	src/io/cli/kpath.cpp
+	src/io/help.cpp
+	src/io/dos.cpp
+	src/io/charge.cpp
+	src/algorithm/utils.cpp
+	src/algorithm/cif.cpp
+	src/io/qe_input.cpp
+	src/plot/dos.cpp
+	src/io/band.cpp
+	src/algorithm/band.cpp
+	src/plot/band.cpp
+	src/algorithm/elastic.cpp
+	src/plot/charge.cpp
 )
 target_include_directories(qepp PRIVATE include)
 target_link_libraries(qepp PRIVATE Matplot++::matplot Eigen3::Eigen)

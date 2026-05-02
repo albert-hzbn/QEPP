@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -7,6 +8,15 @@ namespace qe {
 
 std::vector<std::vector<double>> parse_dos_table(const std::string& dosPath);
 double extract_fermi_from_qe_output(const std::string& qeOutPath);
+
+struct PdosSummary {
+    std::vector<double> energies;
+    std::map<std::string, std::vector<double>> byElement;
+    std::map<char, std::vector<double>> byOrbital;
+    size_t channelCount = 0;
+};
+
+PdosSummary parse_pdos_summary(const std::string& dosPath);
 
 // Plot total DOS. Always called.
 void write_dos_plot_bundle(const std::string& dosInputPath,
