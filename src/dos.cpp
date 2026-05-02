@@ -77,15 +77,26 @@ double extract_fermi_from_qe_output(const std::string& qeOutPath) {
     bool found = false;
     double fermiEv = 0.0;
 
+    // Matches either metallic ("the Fermi energy is X ev") or
+    // insulating ("highest occupied level (ev): X") QE output lines.
     while (std::getline(in, line)) {
         const std::string lower = to_lower(line);
-        const auto pos = lower.find("the fermi energy is");
-        if (pos == std::string::npos) {
-            continue;
+
+        std::string tail;
+        static const std::string kFermi  = "the fermi energy is";
+        static const std::string kHighest = "highest occupied level (ev):";
+
+        auto pos = lower.find(kFermi);
+        if (pos != std::string::npos) {
+            tail = line.substr(pos + kFermi.size());
+        } else {
+            pos = lower.find(kHighest);
+            if (pos != std::string::npos)
+                tail = line.substr(pos + kHighest.size());
         }
 
-        const std::string tail =
-            line.substr(pos + std::string("the fermi energy is").size());
+        if (tail.empty()) continue;
+
         std::istringstream iss(tail);
         std::string token;
         while (iss >> token) {
@@ -109,7 +120,8 @@ double extract_fermi_from_qe_output(const std::string& qeOutPath) {
     if (!found) {
         throw std::runtime_error(
             "Could not find Fermi energy in QE output. Expected a line like: "
-            "'the Fermi energy is ... ev'.");
+            "'the Fermi energy is ... ev' (metals) or "
+            "'highest occupied level (ev): ...' (insulators).");
     }
 
     return fermiEv;
