@@ -21,6 +21,10 @@ void print_help(const char* prog) {
         "  elastic -post  Collect energies and compute elastic constants\n"
         "  charge  -pre   Generate pp.x inputs for charge density / charge diff / ELF\n"
         "  charge  -post  Plot volumetric data from a cube file\n"
+        "  mag     -post  Tabulate per-atom magnetic moments from a QE pw.x output\n"
+        "  stm     -pre   Generate pp.x input for STM simulation (ILDOS, Tersoff-Hamann)\n"
+        "  stm     -post  Plot 2D constant-height STM map from a cube file\n"
+        "  bader   -post  Tabulate per-atom Bader charges from ACF.dat\n"
         "\n"
         "Run '" << prog << " help <command>' or '" << prog << " <command> --help' for details.\n";
 }
@@ -337,6 +341,104 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "\n"
                 "Run '" << prog << " charge -pre --help' or '" << prog << " charge -post --help' for details.\n";
         }
+    }
+    else if (cmd == "mag") {
+        std::cout <<
+            "DESCRIPTION\n"
+            "  Parses a QE pw.x SCF output and prints a per-atom table of magnetic\n"
+            "  moments. Supports collinear (nspin=2) and non-collinear\n"
+            "  (noncolin=.true.) calculations. Always reports the converged (final\n"
+            "  iteration) values. Non-collinear output includes Sx, Sy, Sz components.\n"
+            "\n"
+            "USAGE\n"
+            "  " << prog << " mag -post <qe_output.out> [output_prefix]\n"
+            "\n"
+            "ARGUMENTS\n"
+            "  qe_output.out   pw.x SCF output file\n"
+            "  output_prefix   Prefix for <prefix>.mag.txt (default: stem of output file)\n"
+            "\n"
+            "EXAMPLES\n"
+            "  " << prog << " mag -post fe.scf.out\n"
+            "  " << prog << " mag -post fe3o4.scf.out fe3o4_mag\n";
+    }
+    else if (cmd == "stm") {
+        if (sub == "-pre") {
+            std::cout <<
+                "DESCRIPTION\n"
+                "  Generates a pp.x input file for STM simulation using the\n"
+                "  Tersoff-Hamann approximation (ILDOS, plot_num=5). The energy\n"
+                "  window around E_F is set by the bias voltage: positive bias probes\n"
+                "  empty states [0, bias], negative bias probes filled states [bias, 0].\n"
+                "\n"
+                "USAGE\n"
+                "  " << prog << " stm -pre <scf.in> [bias_eV] [outdir]\n"
+                "\n"
+                "ARGUMENTS\n"
+                "  scf.in     QE SCF input (used to extract prefix and outdir)\n"
+                "  bias_eV    Bias voltage in eV (default: 1.0; positive = empty states)\n"
+                "  outdir     Output directory (default: <stem>_stm/)\n"
+                "\n"
+                "EXAMPLES\n"
+                "  " << prog << " stm -pre si.scf.in\n"
+                "  " << prog << " stm -pre si.scf.in 0.5 si_stm\n";
+        } else if (sub == "-post") {
+            std::cout <<
+                "DESCRIPTION\n"
+                "  Reads the Gaussian cube file produced by pp.x (plot_num=5) and\n"
+                "  generates a 2D constant-height XY map PNG using a hot colormap.\n"
+                "  The tip height can be specified in Angstrom above the cube origin,\n"
+                "  or defaults to the midplane z-index.\n"
+                "\n"
+                "USAGE\n"
+                "  " << prog << " stm -post <stm.cube> [output_prefix] [height_ang]\n"
+                "\n"
+                "ARGUMENTS\n"
+                "  stm.cube       Cube file from pp.x STM run\n"
+                "  output_prefix  Output prefix for PNG (default: stem of cube file)\n"
+                "  height_ang     Tip height in Ang above cube origin (-1 = midplane)\n"
+                "\n"
+                "EXAMPLES\n"
+                "  " << prog << " stm -post si.stm.cube\n"
+                "  " << prog << " stm -post si.stm.cube si_stm 12.5\n";
+        } else {
+            std::cout <<
+                "USAGE\n"
+                "  " << prog << " stm -pre  <scf.in> [bias_eV] [outdir]\n"
+                "  " << prog << " stm -post <stm.cube> [output_prefix] [height_ang]\n"
+                "\n"
+                "WORKFLOW\n"
+                "  1. " << prog << " stm -pre si.scf.in 1.0 si_stm\n"
+                "  2. cd si_stm && pp.x < si.stm.pp.in > si.stm.pp.out\n"
+                "  3. " << prog << " stm -post si.stm.cube si_stm\n"
+                "\n"
+                "Run '" << prog << " stm -pre --help' or '" << prog << " stm -post --help' for details.\n";
+        }
+    }
+    else if (cmd == "bader") {
+        std::cout <<
+            "DESCRIPTION\n"
+            "  Reads ACF.dat produced by Henkelman's bader program and prints a\n"
+            "  per-atom table of Bader charges and Bader volumes. If an SCF input\n"
+            "  file is provided, element labels are read from ATOMIC_POSITIONS and\n"
+            "  assigned to atoms in ACF.dat order.\n"
+            "\n"
+            "WORKFLOW\n"
+            "  1. qepp charge -pre si.scf.in si_charge\n"
+            "  2. pp.x < si_charge/si.charge.pp.in > si_charge/si.charge.pp.out\n"
+            "  3. bader si.charge.cube   (Henkelman bader binary)\n"
+            "  4. qepp bader -post ACF.dat si.scf.in si_bader\n"
+            "\n"
+            "USAGE\n"
+            "  " << prog << " bader -post <ACF.dat> [scf.in] [output_prefix]\n"
+            "\n"
+            "ARGUMENTS\n"
+            "  ACF.dat        Atomic charge file from Henkelman bader\n"
+            "  scf.in         QE SCF input for element labels (optional but recommended)\n"
+            "  output_prefix  Prefix for <prefix>.bader.txt (default: stem of ACF.dat)\n"
+            "\n"
+            "EXAMPLES\n"
+            "  " << prog << " bader -post ACF.dat\n"
+            "  " << prog << " bader -post ACF.dat si.scf.in si_bader\n";
     }
     else {
         std::cerr << "Unknown command '" << cmd << "'. Run '" << prog << " help' for the list.\n";

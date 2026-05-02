@@ -90,6 +90,21 @@ int dispatch_cli(int argc, char** argv) {
         return 1;
     }
 
+    if (mode == "mag") {
+        if (sub != "-post") { print_help_command(argv[0], "mag", ""); return 1; }
+        return qe::handle_mag_mode(argc, argv, 1);
+    }
+    if (mode == "stm") {
+        if (sub == "-pre")  return qe::handle_stm_pre_mode(argc, argv, 1);
+        if (sub == "-post") return qe::handle_stm_post_mode(argc, argv, 1);
+        print_help_command(argv[0], "stm", "");
+        return 1;
+    }
+    if (mode == "bader") {
+        if (sub != "-post") { print_help_command(argv[0], "bader", ""); return 1; }
+        return qe::handle_bader_mode(argc, argv, 1);
+    }
+
     throw std::runtime_error("Unknown command: '" + mode +
                              "'. Run '" + std::string(argv[0]) + " help' for usage.");
 }

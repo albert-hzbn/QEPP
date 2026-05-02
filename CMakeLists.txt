@@ -34,6 +34,13 @@ add_executable(
 	src/plot/band.cpp
 	src/algorithm/elastic.cpp
 	src/plot/charge.cpp
+	src/io/mag.cpp
+	src/io/stm.cpp
+	src/plot/stm.cpp
+	src/io/bader.cpp
+	src/io/cli/mag.cpp
+	src/io/cli/stm.cpp
+	src/io/cli/bader.cpp
 )
 target_include_directories(qepp PRIVATE include)
 target_link_libraries(qepp PRIVATE Matplot++::matplot Eigen3::Eigen)
