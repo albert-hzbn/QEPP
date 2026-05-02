@@ -21,33 +21,9 @@ third_party/matplot-install/
 **/*.save/
 *.out
 
-# ── Test DFT calculation directories (strain subdirs with full pw.x runs) ─────
-# Keep: input files (*.in), reference results, pseudopotentials.
-# Exclude: large pw.x output trees.
-tests/elastic_si/e*/
-tests/elastic_si/e1e2e3/
-tests/elastic_si_low/e*/
-tests/elastic_si_prim/e*/
-tests/elastic_al/e*/
-tests/band_kpath/tmp
-
-# ── run_si_dos generated files ─────────────────────────────────────────────────
-run_si_dos/tmp/
-run_si_dos/*.pdos_atm*
-run_si_dos/*.pdos_tot
-run_si_dos/si_projwfc.*
-run_si_dos/si_pdos_test.*
-run_si_dos/*.png
-run_si_dos/*.dat
-run_si_dos/*.gnuplot
-run_si_dos/si_auto.*
-run_si_dos/si_plot*
-run_si_dos/si_bands_plot.*
-run_si_dos/si_bands.out
-run_si_dos/si_nscf.out
-run_si_dos/si_scf.out
-run_si_dos/si_dos.out
-run_si_dos/si_bands_pp.out
+# ── Test / example DFT runs (all ignored — large outputs, not source code) ────
+tests/
+run_si_dos/
 
 # ── Editor / IDE ───────────────────────────────────────────────────────────────
 .vscode/

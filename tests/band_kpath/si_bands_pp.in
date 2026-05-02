@@ -1,6 +1,0 @@
-! Generated bands.x post-processing input
-&BANDS
-  prefix = 'si',
-  outdir = './tmp',
-  filband = 'test_si.bands.dat'
-/
