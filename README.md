@@ -17,6 +17,16 @@ All plots are rendered as high-resolution PNG files via [Matplot++](https://alan
 | `kpath`   | `-pre`  | Suggest and print the standard high-symmetry k-path for a structure |
 | `elastic` | `-pre`  | Generate strain-deformed SCF inputs for elastic constant calculation |
 | `elastic` | `-post` | Post-process converged strain calculations → full elastic property report |
+| `charge`  | `-pre`  | Generate `pp.x` inputs for charge density, charge difference, and ELF |
+| `charge`  | `-post` | Plot volumetric data from Gaussian cube files |
+| `mag`     | `-post` | Summarize per-atom magnetic moments from QE `pw.x` output |
+| `stm`     | `-pre`  | Generate `pp.x` ILDOS input (`plot_num=5`) for STM simulation |
+| `stm`     | `-post` | Plot 2D constant-height STM maps from cube files |
+| `bader`   | `-post` | Parse Henkelman `ACF.dat` and report per-atom Bader charges |
+| `conv`    | `-pre`  | Generate convergence sweep SCF inputs for `ecutwfc` or `kspacing` |
+| `conv`    | `-post` | Parse sweep energies and produce convergence table + plot |
+| `struct`  | `-post` | Print lattice parameters, cell vectors, and atom coordinates from SCF input |
+| `parse`   | `-post` | Parse QE `pw.x` output summary (energy, Fermi, force, pressure, timing) |
 
 ### cif — SCF Input Generation
 - Parses CIF files (fractional coordinates, lattice parameters, symmetry)
@@ -99,6 +109,31 @@ Post-processes the converged strain calculations and prints a comprehensive repo
 
 **Born mechanical stability** check (Born & Huang 1954; Mouhat & Coudert 2014)
 
+### conv — Convergence Sweep and Analysis
+- `conv -pre` creates a parameter sweep over either `ecutwfc` (Ry) or `kspacing` (1/Ang)
+  from a template SCF input and writes one case per subdirectory.
+- `conv -post` scans completed runs, parses total energies, computes
+  $|\Delta E|$ in meV/atom relative to the most converged point, and writes:
+  - `<prefix>.conv.txt` (table)
+  - `<prefix>.conv.png` (convergence plot)
+
+### struct — Structure Summary from QE Input
+- Parses a QE SCF input and prints lattice constants, angles, cell volume,
+  lattice vectors, and per-atom fractional/Cartesian coordinates.
+- Supports explicit `CELL_PARAMETERS` (`ibrav=0`) and common cubic
+  `ibrav` fallbacks (`1`, `2`, `3`) using `celldm(1)`/`A`.
+- Writes `<prefix>.struct.txt`.
+
+### parse — QE Output Summary Parser
+- Parses a QE `pw.x` output file and extracts:
+  - Total energy (Ry/eV)
+  - Fermi level
+  - Per-atom forces and max force
+  - Pressure
+  - SCF convergence + iteration count
+  - Wall time
+- Writes `<prefix>.parse.txt`.
+
 ---
 
 ## Usage
@@ -117,6 +152,16 @@ qepp band    -post <filband> [fermi_eV|qe.out] [prefix] [L,G,X,...]
 qepp kpath   -pre  <input.cif> [pts_per_segment] [output.kpath]
 qepp elastic -pre  <scf_template.in> <outdir> [ndeltas] [max_delta]
 qepp elastic -post <scf_template.in> <outdir>
+qepp charge  -pre  <scf.in> [outdir]
+qepp charge  -post <cube_file> [prefix]
+qepp mag     -post <qe.out> [prefix]
+qepp stm     -pre  <scf.in> [bias_eV] [outdir]
+qepp stm     -post <stm.cube> [prefix] [height_ang]
+qepp bader   -post <ACF.dat> [scf.in] [prefix]
+qepp conv    -pre  <scf.in> <ecutwfc|kspacing> <min> <max> <step> [outdir]
+qepp conv    -post <outdir> <ecutwfc|kspacing> [prefix]
+qepp struct  -post <scf.in> [prefix]
+qepp parse   -post <qe.out> [prefix]
 ```
 
 ### Examples
@@ -184,6 +229,34 @@ qepp elastic -post si_scf.in results/elastic
 # → results/elastic/elastic_results.txt  (printed to stdout as well)
 ```
 
+**Generate and analyze an `ecutwfc` convergence sweep:**
+```bash
+# 1. Generate sweep inputs
+qepp conv -pre si_scf.in ecutwfc 20 80 10 results/conv_ecut
+
+# 2. Run QE in each case
+for d in results/conv_ecut/*/; do
+  pw.x < "$d/scf.in" > "$d/scf.out"
+done
+
+# 3. Summarize convergence
+qepp conv -post results/conv_ecut ecutwfc results/conv_ecut/ecutwfc
+# → results/conv_ecut/ecutwfc.conv.txt
+#   results/conv_ecut/ecutwfc.conv.png
+```
+
+**Print structure info from an SCF input:**
+```bash
+qepp struct -post si_scf.in si_struct
+# → si_struct.struct.txt
+```
+
+**Parse QE SCF output summary:**
+```bash
+qepp parse -post si_scf.out si_summary
+# → si_summary.parse.txt
+```
+
 ---
 
 ## Output Files
@@ -198,6 +271,13 @@ qepp elastic -post si_scf.in results/elastic
 | `.band.png` | Band structure plot with k-path labels (Matplot++) |
 | `elastic_setup.dat` | Run parameters: `ndeltas`, `max_delta` |
 | `elastic_results.txt` | Full elastic property report (mirrors stdout) |
+| `.mag.txt` | Per-atom magnetic moments + total/absolute magnetization summary |
+| `.stm.png` | Constant-height STM 2D map |
+| `.bader.txt` | Per-atom Bader charge/volume summary |
+| `.conv.txt` | Convergence table for sweep results |
+| `.conv.png` | Convergence curve plot ($|\Delta E|$ in meV/atom) |
+| `.struct.txt` | Structure summary from QE SCF input |
+| `.parse.txt` | Parsed QE output summary |
 
 ---
 
@@ -209,21 +289,43 @@ QEPP/
 ├── INSTALL.md
 ├── README.md
 ├── include/qe/
-│   ├── types.hpp       # Shared data structures (ElasticResults, QEInput, …)
-│   ├── utils.hpp       # String helpers
-│   ├── cif.hpp         # CIF parsing, k-mesh, k-path suggestion
-│   ├── qe_input.hpp    # QE input file parsing and writers
-│   ├── dos.hpp         # DOS / PDOS parsing and plotting
-│   ├── band.hpp        # Band parsing and plotting
-│   └── elastic.hpp     # Elastic constants: setup and post-processing
+│   ├── band.hpp        # Band parsing / plotting APIs
+│   ├── bader.hpp       # Bader parser/report APIs
+│   ├── charge.hpp      # Charge/ELF APIs
+│   ├── cif.hpp         # CIF parsing + kpath APIs
+│   ├── conv.hpp        # Convergence sweep APIs
+│   ├── dos.hpp         # DOS/PDOS APIs
+│   ├── elastic.hpp     # Elastic APIs
+│   ├── help.hpp        # CLI help printers
+│   ├── mag.hpp         # Magnetism parser/report APIs
+│   ├── parse.hpp       # QE output parser APIs
+│   ├── qe_input.hpp    # QE template/input writers
+│   ├── stm.hpp         # STM pre/post APIs
+│   ├── struct.hpp      # Structure summary APIs
+│   ├── types.hpp
+│   ├── utils.hpp
+│   └── cli/
+│       ├── commands.hpp
+│       ├── dispatch.hpp
+│       └── kpath.hpp
 ├── src/
-│   ├── main.cpp        # CLI entry point (-pre/-post dispatch)
-│   ├── utils.cpp
-│   ├── cif.cpp
-│   ├── qe_input.cpp
-│   ├── dos.cpp         # Total DOS + PDOS plotting via Matplot++
-│   ├── band.cpp
-│   └── elastic.cpp     # Strain pattern generation, energy fitting, VRH, report
+│   ├── main.cpp
+│   ├── algorithm/
+│   ├── io/
+│   │   ├── cli/
+│   │   ├── band.cpp
+│   │   ├── bader.cpp
+│   │   ├── charge.cpp
+│   │   ├── conv.cpp
+│   │   ├── dos.cpp
+│   │   ├── elastic.cpp
+│   │   ├── help.cpp
+│   │   ├── mag.cpp
+│   │   ├── parse.cpp
+│   │   ├── qe_input.cpp
+│   │   ├── stm.cpp
+│   │   └── struct.cpp
+│   └── plot/
 ├── tests/
 │   ├── fixtures/
 │   │   ├── cif/        # CIF test structures
