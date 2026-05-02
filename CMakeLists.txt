@@ -41,6 +41,13 @@ add_executable(
 	src/io/cli/mag.cpp
 	src/io/cli/stm.cpp
 	src/io/cli/bader.cpp
+	src/io/conv.cpp
+	src/plot/conv.cpp
+	src/io/struct.cpp
+	src/io/parse.cpp
+	src/io/cli/conv.cpp
+	src/io/cli/struct.cpp
+	src/io/cli/parse.cpp
 )
 target_include_directories(qepp PRIVATE include)
 target_link_libraries(qepp PRIVATE Matplot++::matplot Eigen3::Eigen)

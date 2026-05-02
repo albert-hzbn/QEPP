@@ -22,4 +22,11 @@ int handle_stm_post_mode(int argc, char** argv, int s = 0);
 
 int handle_bader_mode(int argc, char** argv, int s = 0);
 
+int handle_conv_pre_mode(int argc, char** argv, int s = 0);
+int handle_conv_post_mode(int argc, char** argv, int s = 0);
+
+int handle_struct_mode(int argc, char** argv, int s = 0);
+
+int handle_parse_mode(int argc, char** argv, int s = 0);
+
 }  // namespace qe

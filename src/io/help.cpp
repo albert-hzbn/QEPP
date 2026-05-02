@@ -25,6 +25,10 @@ void print_help(const char* prog) {
         "  stm     -pre   Generate pp.x input for STM simulation (ILDOS, Tersoff-Hamann)\n"
         "  stm     -post  Plot 2D constant-height STM map from a cube file\n"
         "  bader   -post  Tabulate per-atom Bader charges from ACF.dat\n"
+        "  conv    -pre   Generate SCF inputs for ecutwfc or k-mesh convergence testing\n"
+        "  conv    -post  Parse energies and plot convergence curve\n"
+        "  struct  -post  Print lattice parameters, cell vectors, and atomic positions\n"
+        "  parse   -post  Extract energy, Fermi level, forces, pressure, timing from QE output\n"
         "\n"
         "Run '" << prog << " help <command>' or '" << prog << " <command> --help' for details.\n";
 }
@@ -439,6 +443,107 @@ void print_help_command(const char* prog, const std::string& cmd,
             "EXAMPLES\n"
             "  " << prog << " bader -post ACF.dat\n"
             "  " << prog << " bader -post ACF.dat si.scf.in si_bader\n";
+    }
+    // ── conv ─────────────────────────────────────────────────────────────────
+    else if (cmd == "conv") {
+        if (sub == "-pre") {
+            std::cout <<
+                "DESCRIPTION\n"
+                "  Generates a series of QE pw.x SCF input files varying ecutwfc or k-mesh\n"
+                "  spacing. Each run goes into its own subdirectory <outdir>/<param>_<value>/.\n"
+                "  After running pw.x in each subdirectory (scf.in -> scf.out), use conv -post\n"
+                "  to parse energies and plot the convergence curve.\n"
+                "\n"
+                "USAGE\n"
+                "  " << prog << " conv -pre <scf.in> <ecutwfc|kspacing> <min> <max> <step> [outdir]\n"
+                "\n"
+                "ARGUMENTS\n"
+                "  scf.in     Template QE SCF input (ibrav=0, K_POINTS automatic required for kspacing)\n"
+                "  ecutwfc    Vary plane-wave cutoff (Ry); ecutrho scaled proportionally if present\n"
+                "  kspacing   Vary k-point spacing (1/Ang) for Monkhorst-Pack mesh; requires CELL_PARAMETERS\n"
+                "  min        Minimum parameter value (inclusive)\n"
+                "  max        Maximum parameter value (inclusive)\n"
+                "  step       Step size\n"
+                "  outdir     Output directory (default: conv_ecutwfc or conv_kspacing)\n"
+                "\n"
+                "EXAMPLES\n"
+                "  " << prog << " conv -pre si.scf.in ecutwfc 20 80 10\n"
+                "  " << prog << " conv -pre si.scf.in kspacing 0.05 0.30 0.05 si_kconv\n";
+        } else if (sub == "-post") {
+            std::cout <<
+                "DESCRIPTION\n"
+                "  Scans <outdir> for subdirectories named <param>_<value>/scf.out, parses\n"
+                "  total energies, computes |ΔE| in meV/atom relative to the most converged\n"
+                "  (largest param) point, and writes a table + PNG convergence plot.\n"
+                "\n"
+                "USAGE\n"
+                "  " << prog << " conv -post <outdir> <ecutwfc|kspacing> [output_prefix]\n"
+                "\n"
+                "ARGUMENTS\n"
+                "  outdir         Directory created by conv -pre\n"
+                "  ecutwfc|kspacing  Must match what was used in -pre\n"
+                "  output_prefix  Prefix for .conv.txt and .conv.png (default: outdir/param)\n"
+                "\n"
+                "EXAMPLES\n"
+                "  " << prog << " conv -post conv_ecutwfc ecutwfc\n"
+                "  " << prog << " conv -post si_kconv kspacing si_kconv/kspacing\n";
+        } else {
+            std::cout <<
+                "USAGE\n"
+                "  " << prog << " conv -pre  <scf.in> <ecutwfc|kspacing> <min> <max> <step> [outdir]\n"
+                "  " << prog << " conv -post <outdir> <ecutwfc|kspacing> [output_prefix]\n"
+                "\n"
+                "WORKFLOW\n"
+                "  1. " << prog << " conv -pre si.scf.in ecutwfc 20 80 10 si_ecut\n"
+                "  2. for d in si_ecut/*/; do (cd \"$d\" && pw.x < scf.in > scf.out); done\n"
+                "  3. " << prog << " conv -post si_ecut ecutwfc\n"
+                "\n"
+                "Run '" << prog << " conv -pre --help' or '" << prog << " conv -post --help' for details.\n";
+        }
+    }
+    // ── struct ────────────────────────────────────────────────────────────────
+    else if (cmd == "struct") {
+        std::cout <<
+            "DESCRIPTION\n"
+            "  Reads a QE pw.x SCF input file and prints a formatted structural summary:\n"
+            "  lattice parameters (a, b, c, α, β, γ, V), cell vectors, and a per-atom table\n"
+            "  of fractional and Cartesian coordinates. Supports CELL_PARAMETERS (ibrav=0)\n"
+            "  and common cubic ibrav values (1, 2, 3) via celldm(1) / A.\n"
+            "\n"
+            "USAGE\n"
+            "  " << prog << " struct -post <scf.in> [output_prefix]\n"
+            "\n"
+            "ARGUMENTS\n"
+            "  scf.in         QE pw.x SCF input file\n"
+            "  output_prefix  Prefix for <prefix>.struct.txt (default: stem of scf.in)\n"
+            "\n"
+            "EXAMPLES\n"
+            "  " << prog << " struct -post si.scf.in\n"
+            "  " << prog << " struct -post al.scf.in al_struct\n";
+    }
+    // ── parse ─────────────────────────────────────────────────────────────────
+    else if (cmd == "parse") {
+        std::cout <<
+            "DESCRIPTION\n"
+            "  General-purpose QE pw.x stdout parser. Extracts and reports:\n"
+            "    - Total energy (Ry and eV)\n"
+            "    - Fermi energy (eV)\n"
+            "    - Per-atom forces and max force (Ry/au)\n"
+            "    - Pressure (kbar) from the stress tensor\n"
+            "    - SCF convergence status and iteration count\n"
+            "    - Wall time\n"
+            "  Saves a summary to <prefix>.parse.txt.\n"
+            "\n"
+            "USAGE\n"
+            "  " << prog << " parse -post <qe.out> [output_prefix]\n"
+            "\n"
+            "ARGUMENTS\n"
+            "  qe.out         QE pw.x stdout (the output of a pw.x run)\n"
+            "  output_prefix  Prefix for <prefix>.parse.txt (default: stem of qe.out)\n"
+            "\n"
+            "EXAMPLES\n"
+            "  " << prog << " parse -post si.scf.out\n"
+            "  " << prog << " parse -post al.relax.out al_relax\n";
     }
     else {
         std::cerr << "Unknown command '" << cmd << "'. Run '" << prog << " help' for the list.\n";

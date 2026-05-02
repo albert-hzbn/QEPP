@@ -105,6 +105,21 @@ int dispatch_cli(int argc, char** argv) {
         return qe::handle_bader_mode(argc, argv, 1);
     }
 
+    if (mode == "conv") {
+        if (sub == "-pre")  return qe::handle_conv_pre_mode(argc, argv, 1);
+        if (sub == "-post") return qe::handle_conv_post_mode(argc, argv, 1);
+        print_help_command(argv[0], "conv", "");
+        return 1;
+    }
+    if (mode == "struct") {
+        if (sub != "-post") { print_help_command(argv[0], "struct", ""); return 1; }
+        return qe::handle_struct_mode(argc, argv, 1);
+    }
+    if (mode == "parse") {
+        if (sub != "-post") { print_help_command(argv[0], "parse", ""); return 1; }
+        return qe::handle_parse_mode(argc, argv, 1);
+    }
+
     throw std::runtime_error("Unknown command: '" + mode +
                              "'. Run '" + std::string(argv[0]) + " help' for usage.");
 }
