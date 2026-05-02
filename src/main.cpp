@@ -16,7 +16,6 @@
 #include "qe/qe_input.hpp"
 #include "qe/types.hpp"
 #include "qe/utils.hpp"
-
 // Forward declarations so handlers inside namespace qe can call these.
 static void print_help(const char* prog);
 static void print_help_command(const char* prog, const std::string& cmd,
@@ -140,6 +139,78 @@ static int handle_band_post_mode(int argc, char** argv, int s = 0) {
     return 0;
 }
 
+static int handle_band_fat_mode(int argc, char** argv, int s = 0) {
+    // Usage: band -fat <bands.gnu> <atomic_proj.xml> [outprefix] [fermi] [filter ...]
+    // filter: element=Si,Fe  |  atom=1,2,3  |  orbital=s,p,d,f  (combinable)
+    if (argc < 4 + s) {
+        print_help_command(argv[0], "band", "-fat");
+        return 1;
+    }
+
+    const std::string bandPath   = argv[2 + s];
+    const std::string xmlPath    = argv[3 + s];
+    std::string outPrefix        = stem_from_path(bandPath);
+    double fermiEv               = 0.0;
+    std::vector<std::string> elements;
+    std::vector<int>         atomNums;
+    std::vector<int>         orbitalLs;
+
+    auto l_from_name = [](const std::string& name) -> int {
+        const std::string n = qe::to_lower(name);
+        if (n == "s") return 0;
+        if (n == "p") return 1;
+        if (n == "d") return 2;
+        if (n == "f") return 3;
+        return -1;
+    };
+
+    // Optional positional args: [outprefix] [fermi] [filter ...]
+    for (int i = 4 + s; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg.rfind("element=", 0) == 0) {
+            std::istringstream ss(arg.substr(8));
+            std::string tok;
+            while (std::getline(ss, tok, ','))
+                if (!tok.empty()) elements.push_back(trim(tok));
+        } else if (arg.rfind("atom=", 0) == 0) {
+            std::istringstream ss(arg.substr(5));
+            std::string tok;
+            while (std::getline(ss, tok, ','))
+                if (!tok.empty()) atomNums.push_back(std::stoi(trim(tok)));
+        } else if (arg.rfind("orbital=", 0) == 0) {
+            std::istringstream ss(arg.substr(8));
+            std::string tok;
+            while (std::getline(ss, tok, ',')) {
+                const int l = l_from_name(trim(tok));
+                if (l >= 0) orbitalLs.push_back(l);
+            }
+        } else {
+            double v = 0.0;
+            if (try_parse_double(arg, v)) {
+                fermiEv = v;
+            } else if (i == 4 + s) {
+                // Could be fermi from QE output file or outprefix
+                // Try as QE output for Fermi energy extraction first
+                try {
+                    fermiEv = extract_fermi_from_qe_output(arg);
+                    std::cout << "Extracted Fermi energy from QE output: "
+                              << std::fixed << std::setprecision(6) << fermiEv << " eV\n";
+                } catch (...) {
+                    outPrefix = arg;
+                }
+            } else {
+                outPrefix = arg;
+            }
+        }
+    }
+
+    auto bandData = parse_band_table(bandPath);
+    const auto proj = parse_atomic_proj(xmlPath);
+    write_fatband_plots(bandPath, bandData, proj, fermiEv, outPrefix,
+                        elements, atomNums, orbitalLs);
+    return 0;
+}
+
 static int handle_kpath_mode(int argc, char** argv, int s = 0) {
     if (argc < 3 + s || argc > 5 + s) {
         print_help_command(argv[0], "kpath", "-pre");
@@ -213,8 +284,13 @@ static int handle_band_pre_mode(int argc, char** argv, int s = 0) {
     const std::string filbandName = defaultPrefix + ".bands.dat";
     write_bands_pp_input_from_scf_template(scfInputPath, bandsPpPath, filbandName);
 
+    // Also write a projwfc.x input alongside bands_pp for fat-band post-processing
+    const std::string projwfcPath = stem_from_path(bandsPpPath) + ".projwfc.in";
+    write_bands_projwfc_input(scfInputPath, projwfcPath);
+
     std::cout << "Generated QE bands pw.x input: " << bandsPwPath << "\n";
     std::cout << "Generated QE bands.x input: " << bandsPpPath << "\n";
+    std::cout << "Generated projwfc.x input: " << projwfcPath << "\n";
     std::cout << "Suggested k-path family: " << kpath.family << "\n";
     std::cout << "Path:";
     for (size_t i = 0; i < kpath.nodes.size(); ++i) {
@@ -408,13 +484,59 @@ static void print_help_command(const char* prog, const std::string& cmd,
                 "EXAMPLES\n"
                 "  " << prog << " band -post si.bands.dat.gnu 6.341\n"
                 "  " << prog << " band -post si.bands.dat.gnu si.scf.out si_bands L,G,X,W,K,G\n";
+        } else if (sub == "-fat") {
+            std::cout <<
+                "DESCRIPTION\n"
+                "  Plots a fat (projected) band structure. Thin gray lines show all bands;\n"
+                "  colored scatter bubbles (area proportional to projection weight) show\n"
+                "  the contribution of selected elements, atoms, or orbitals, computed from\n"
+                "  the atomic_proj.xml produced by QE projwfc.x.\n"
+                "\n"
+                "  When band -pre is run it also writes a projwfc.x input file alongside\n"
+                "  the bands_pp.in. After running pw.x (bands) and projwfc.x, call -fat.\n"
+                "\n"
+                "USAGE\n"
+                "  " << prog << " band -fat <bands.dat.gnu> <atomic_proj.xml> [outprefix] [fermi_eV|qe_output.out] [filter ...]\n"
+                "\n"
+                "ARGUMENTS\n"
+                "  bands.dat.gnu     Band-structure data file from bands.x (the .gnu file)\n"
+                "  atomic_proj.xml   Projection data from projwfc.x (in <outdir>/<prefix>.save/)\n"
+                "  outprefix         Output prefix for PNG files (default: stem of .gnu file)\n"
+                "  fermi_eV          Fermi energy in eV, OR path to QE scf/nscf output\n"
+                "  filter            One or more of (all combinable):\n"
+                "    element=Si,Fe     filter by element name\n"
+                "    atom=1,3          filter by 1-based atom index\n"
+                "    orbital=s,p,d,f   filter by orbital type (s/p/d/f)\n"
+                "\n"
+                "GROUPING\n"
+                "  element + orbital  → one PNG per (element, orbital) pair\n"
+                "  element only       → one PNG per element\n"
+                "  atom + orbital     → one PNG per (atom, orbital) pair\n"
+                "  atom only          → one PNG per atom\n"
+                "  orbital only       → one PNG per orbital, summed over all atoms\n"
+                "  none               → auto: one PNG per distinct element\n"
+                "  If >1 group, an additional combined PNG is produced.\n"
+                "\n"
+                "OUTPUT\n"
+                "  <outprefix>.fatband_<group>.png  — one PNG per group\n"
+                "  <outprefix>.fatband_combined.png — all groups overlaid (if >1 group)\n"
+                "\n"
+                "EXAMPLES\n"
+                "  " << prog << " band -fat si.bands.dat.gnu tmp/si.save/atomic_proj.xml si 6.204\n"
+                "  " << prog << " band -fat si.bands.dat.gnu tmp/si.save/atomic_proj.xml si 6.204 element=Si\n"
+                "  " << prog << " band -fat si.bands.dat.gnu tmp/si.save/atomic_proj.xml si 6.204 orbital=s,p\n"
+                "  " << prog << " band -fat si.bands.dat.gnu tmp/si.save/atomic_proj.xml si 6.204 element=Si orbital=s,p\n"
+                "  " << prog << " band -fat bi2se3.bands.dat.gnu tmp/bi2se3.save/atomic_proj.xml bi2se3 12.5 element=Bi,Se\n"
+                "  " << prog << " band -fat bi2se3.bands.dat.gnu tmp/bi2se3.save/atomic_proj.xml bi2se3 12.5 atom=1,2\n";
         } else {
             std::cout <<
                 "USAGE\n"
                 "  " << prog << " band -pre  <input.cif> <scf_input.in> [bands_pw.in] [bands_pp.in] [pts]\n"
                 "  " << prog << " band -post <qe_band_file> [fermi_eV|qe_output.out] [output_prefix] [labels]\n"
+                "  " << prog << " band -fat  <bands.dat.gnu> <atomic_proj.xml> [outprefix] [fermi_eV|out] [filter]\n"
                 "\n"
-                "Run '" << prog << " band -pre --help' or '" << prog << " band -post --help' for details.\n";
+                "Run '" << prog << " band -pre --help' or '" << prog << " band -post --help' or\n"
+                "'" << prog << " band -fat --help' for details.\n";
         }
     }
     // ── kpath ─────────────────────────────────────────────────────────────────
@@ -622,6 +744,7 @@ int main(int argc, char** argv) {
         if (mode == "band") {
             if (sub == "-pre")  return qe::handle_band_pre_mode(argc, argv, 1);
             if (sub == "-post") return qe::handle_band_post_mode(argc, argv, 1);
+            if (sub == "-fat")  return qe::handle_band_fat_mode(argc, argv, 1);
             print_help_command(argv[0], "band", "");
             return 1;
         }

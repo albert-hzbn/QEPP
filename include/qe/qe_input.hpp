@@ -34,4 +34,9 @@ void write_bands_pp_input_from_scf_template(const std::string& scfInputPath,
                                             const std::string& bandsPpInputPath,
                                             const std::string& filbandName);
 
+// Write a projwfc.x input for a bands calculation (used to generate fat bands).
+// Reads prefix and outdir from scfInputPath; writes to projwfcInputPath.
+void write_bands_projwfc_input(const std::string& scfInputPath,
+                               const std::string& projwfcInputPath);
+
 }  // namespace qe

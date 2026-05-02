@@ -268,4 +268,29 @@ void write_bands_pp_input_from_scf_template(const std::string& scfInputPath,
     out << "/\n";
 }
 
+void write_bands_projwfc_input(const std::string& scfInputPath,
+                               const std::string& projwfcInputPath) {
+    const auto lines = load_lines(scfInputPath);
+    std::string prefix = extract_quoted_assignment(lines, "prefix");
+    std::string outdir = extract_quoted_assignment(lines, "outdir");
+
+    if (prefix.empty()) prefix = "qe";
+    if (outdir.empty()) outdir = "./tmp";
+
+    std::ofstream out(projwfcInputPath);
+    if (!out.is_open()) {
+        throw std::runtime_error("Could not open output file: " + projwfcInputPath);
+    }
+
+    // lsym=.false. is required when the k-path contains general (non-symmetric) points
+    out << "! Generated projwfc.x input for fat band structure\n";
+    out << "! Run this after the bands pw.x calculation.\n";
+    out << "! Output: " << outdir << "/" << prefix << ".save/atomic_proj.xml\n";
+    out << "&PROJWFC\n";
+    out << "  prefix = '" << prefix << "',\n";
+    out << "  outdir = '" << outdir << "',\n";
+    out << "  lsym   = .false.\n";
+    out << "/\n";
+}
+
 }  // namespace qe

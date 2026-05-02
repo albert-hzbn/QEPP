@@ -28,6 +28,21 @@ struct BandData {
     std::vector<std::pair<double, std::string>> kLabelMarks;
 };
 
+// Projected band-structure data parsed from atomic_proj.xml (projwfc.x output)
+struct AtomicProj {
+    struct WfcInfo {
+        int         atomnum = 0;  // 1-based atom index
+        std::string elem;         // element name e.g. "Si"
+        int         l = 0;        // angular momentum quantum number
+    };
+    int nk   = 0;
+    int nbnd = 0;
+    int nwfc = 0;
+    std::vector<WfcInfo> wfcInfo;  // size = nwfc
+    // weights[iwfc][ik][ibnd]  =  |<psi_nk | phi_iwfc>|^2
+    std::vector<std::vector<std::vector<double>>> weights;
+};
+
 struct KPathNode {
     std::string label;
     Eigen::Vector3d k;
