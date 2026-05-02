@@ -133,7 +133,8 @@ void write_qe_input(const std::string& fileName,
 void write_bands_input_from_scf_template(const std::string& scfInputPath,
                                          const std::string& bandsInputPath,
                                          const SymmetryKPath& kpath,
-                                         int pointsPerSegment) {
+                                         int pointsPerSegment,
+                                         int nbnd) {
     if (pointsPerSegment < 2) {
         throw std::runtime_error("points_per_segment must be >= 2.");
     }
@@ -157,6 +158,7 @@ void write_bands_input_from_scf_template(const std::string& scfInputPath,
 
     bool skippingKBlock = false;
     int kSkipLines = 0;
+    bool inSystemNamelist = false;
     for (size_t i = 0; i < lines.size(); ++i) {
         const std::string t = trim(lines[i]);
         const std::string lower = to_lower(t);
@@ -175,6 +177,10 @@ void write_bands_input_from_scf_template(const std::string& scfInputPath,
             skippingKBlock = false;
         }
 
+        if (lower.rfind("&system", 0) == 0) {
+            inSystemNamelist = true;
+        }
+
         if (lower.rfind("k_points", 0) == 0) {
             skippingKBlock = true;
             kSkipLines = (lower.find("automatic") != std::string::npos) ? 1 : 0;
@@ -183,6 +189,12 @@ void write_bands_input_from_scf_template(const std::string& scfInputPath,
 
         std::string outLine = lines[i];
         const std::string rawLower = to_lower(outLine);
+
+        // Drop any existing nbnd line — we will write our own value.
+        if (inSystemNamelist && nbnd > 0 && rawLower.find("nbnd") != std::string::npos) {
+            continue;
+        }
+
         const auto calcPos = rawLower.find("calculation");
         if (calcPos != std::string::npos) {
             const auto eqPos = outLine.find('=', calcPos);
@@ -204,6 +216,14 @@ void write_bands_input_from_scf_template(const std::string& scfInputPath,
             const auto eqPos = outLine.find('=', convPos);
             if (eqPos != std::string::npos) {
                 outLine = "  conv_thr = 1.0d-8";
+            }
+        }
+
+        // When closing &SYSTEM, inject nbnd before the '/'.
+        if (inSystemNamelist && t == "/") {
+            inSystemNamelist = false;
+            if (nbnd > 0) {
+                out << "  nbnd = " << nbnd << ",\n";
             }
         }
 

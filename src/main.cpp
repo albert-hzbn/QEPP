@@ -191,7 +191,7 @@ static int handle_kpath_mode(int argc, char** argv, int s = 0) {
 }
 
 static int handle_band_pre_mode(int argc, char** argv, int s = 0) {
-    if (argc < 4 + s || argc > 7 + s) {
+    if (argc < 4 + s || argc > 8 + s) {
         print_help_command(argv[0], "band", "-pre");
         return 1;
     }
@@ -202,12 +202,13 @@ static int handle_band_pre_mode(int argc, char** argv, int s = 0) {
     const std::string bandsPwPath  = (argc >= 5 + s) ? argv[4 + s] : (defaultPrefix + ".bands.in");
     const std::string bandsPpPath  = (argc >= 6 + s) ? argv[5 + s] : (defaultPrefix + ".bands_pp.in");
     const int pointsPerSegment     = (argc >= 7 + s) ? std::stoi(argv[6 + s]) : 20;
+    const int nbnd                 = (argc >= 8 + s) ? std::stoi(argv[7 + s]) : 0;
 
     const CifStructure structure = parse_cif(cifPath);
     const SymmetryKPath kpath = suggest_kpath_from_cif(structure);
 
     write_bands_input_from_scf_template(scfInputPath, bandsPwPath, kpath,
-                                        pointsPerSegment);
+                                        pointsPerSegment, nbnd);
     const std::string filbandName = defaultPrefix + ".bands.dat";
     write_bands_pp_input_from_scf_template(scfInputPath, bandsPpPath, filbandName);
 
@@ -342,7 +343,7 @@ static void print_help_command(const char* prog, const std::string& cmd,
                 "  cutoffs) are inherited from the SCF input.\n"
                 "\n"
                 "USAGE\n"
-                "  " << prog << " band -pre <input.cif> <scf_input.in> [bands_pw.in] [bands_pp.in] [pts]\n"
+                "  " << prog << " band -pre <input.cif> <scf_input.in> [bands_pw.in] [bands_pp.in] [pts] [nbnd]\n"
                 "\n"
                 "ARGUMENTS\n"
                 "  input.cif          CIF structure file (used to determine the k-path)\n"
@@ -350,10 +351,13 @@ static void print_help_command(const char* prog, const std::string& cmd,
                 "  bands_pw.in        Output pw.x bands input (default: <stem>.bands.in)\n"
                 "  bands_pp.in        Output bands.x input (default: <stem>.bands_pp.in)\n"
                 "  pts                K-points per segment (default: 20)\n"
+                "  nbnd               Total number of bands including empty bands\n"
+                "                     (default: 0 = let QE decide; set e.g. 2x occupied to\n"
+                "                     see conduction bands and the band gap)\n"
                 "\n"
                 "EXAMPLES\n"
                 "  " << prog << " band -pre si.cif si.scf.in\n"
-                "  " << prog << " band -pre si.cif si.scf.in si.bands.in si.bands_pp.in 40\n";
+                "  " << prog << " band -pre si.cif si.scf.in si.bands.in si.bands_pp.in 40 8\n";
         } else if (sub == "-post") {
             std::cout <<
                 "DESCRIPTION\n"

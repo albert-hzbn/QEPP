@@ -27,7 +27,8 @@ void write_qe_input(const std::string& fileName,
 void write_bands_input_from_scf_template(const std::string& scfInputPath,
                                          const std::string& bandsInputPath,
                                          const SymmetryKPath& kpath,
-                                         int pointsPerSegment);
+                                         int pointsPerSegment,
+                                         int nbnd = 0);
 
 void write_bands_pp_input_from_scf_template(const std::string& scfInputPath,
                                             const std::string& bandsPpInputPath,
