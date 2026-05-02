@@ -69,45 +69,9 @@ All plots are rendered as high-resolution PNG files via [Matplot++](https://alan
   any manual editing of the deformed inputs
 
 ### elastic -post — Elastic Property Report
-Post-processes the converged strain calculations and prints a comprehensive report:
-
-**Stiffness and compliance tensors** (full 6×6)
-
-**VRH-averaged elastic moduli** (Voigt/Reuss/Hill):
-- Bulk modulus K, shear modulus G, Young's modulus E, Poisson's ratio ν
-- Zener anisotropy A_Z
-
-**Lamé constants** λ and μ
-
-**Mechanical character & anisotropy indices:**
-- Pugh's ratio K/G (ductile/brittle criterion)
-- Cauchy pressure C₁₂ − C₄₄ (bonding character)
-- Universal anisotropy index A^U (Ranganathan & Ostoja-Starzewski 2008)
-- Percent bulk/shear anisotropy A_B, A_G
-- Per-plane shear anisotropy A₁, A₂, A₃ (Chung & Buessem 1967)
-
-**Vickers hardness** — four independent empirical models:
-| Model | Formula | Reference |
-|-------|---------|-----------|
-| Chen 2011 | 2(k²G)^0.585 − 3 | Intermetallics 19 (2011) 1275 |
-| Tian 2012 | 0.92 k^1.137 G^0.708 | IJRMHM 33 (2012) 93 |
-| Teter 1998 | 0.151 G_V | MRS Bull. 23 (1998) 22 |
-| Niu 2012 | G(1−2ν)/3 | J. Phys.: CM 24 (2012) 405401 |
-
-**Directional elastic properties** (Nye 1957):
-- E along [100], [010], [001] from diagonal compliance
-- E along [110], [111] for cubic systems
-- Linear compressibility β_x, β_y, β_z
-
-**Sound velocities & thermal properties:**
-- Longitudinal v_L, transverse v_T, mean/Debye v_m
-- Debye temperature Θ_D (Anderson 1963)
-- Acoustic Grüneisen parameter γ
-- Minimum thermal conductivity κ_min (Cahill–Watson–Pohl 1992)
-- Lattice thermal conductivity κ_Slack at 300 K (Slack 1973)
-- Empirical melting temperature T_m (Fine, Brown & Marcus 1984)
-
-**Born mechanical stability** check (Born & Huang 1954; Mouhat & Coudert 2014)
+Post-processes the converged strain calculations and computes the full elastic tensor,
+VRH-averaged moduli (K, G, E, ν), Lamé constants, anisotropy indices, Vickers hardness
+(four empirical models), sound velocities, Debye temperature, and Born mechanical stability check.
 
 ### conv — Convergence Sweep and Analysis
 - `conv -pre` creates a parameter sweep over either `ecutwfc` (Ry) or `kspacing` (1/Ang)
@@ -281,67 +245,6 @@ qepp parse -post si_scf.out si_summary
 
 ---
 
-## Project Structure
-
-```
-QEPP/
-├── CMakeLists.txt
-├── INSTALL.md
-├── README.md
-├── include/qe/
-│   ├── band.hpp        # Band parsing / plotting APIs
-│   ├── bader.hpp       # Bader parser/report APIs
-│   ├── charge.hpp      # Charge/ELF APIs
-│   ├── cif.hpp         # CIF parsing + kpath APIs
-│   ├── conv.hpp        # Convergence sweep APIs
-│   ├── dos.hpp         # DOS/PDOS APIs
-│   ├── elastic.hpp     # Elastic APIs
-│   ├── help.hpp        # CLI help printers
-│   ├── mag.hpp         # Magnetism parser/report APIs
-│   ├── parse.hpp       # QE output parser APIs
-│   ├── qe_input.hpp    # QE template/input writers
-│   ├── stm.hpp         # STM pre/post APIs
-│   ├── struct.hpp      # Structure summary APIs
-│   ├── types.hpp
-│   ├── utils.hpp
-│   └── cli/
-│       ├── commands.hpp
-│       ├── dispatch.hpp
-│       └── kpath.hpp
-├── src/
-│   ├── main.cpp
-│   ├── algorithm/
-│   ├── io/
-│   │   ├── cli/
-│   │   ├── band.cpp
-│   │   ├── bader.cpp
-│   │   ├── charge.cpp
-│   │   ├── conv.cpp
-│   │   ├── dos.cpp
-│   │   ├── elastic.cpp
-│   │   ├── help.cpp
-│   │   ├── mag.cpp
-│   │   ├── parse.cpp
-│   │   ├── qe_input.cpp
-│   │   ├── stm.cpp
-│   │   └── struct.cpp
-│   └── plot/
-├── tests/
-│   ├── fixtures/
-│   │   ├── cif/        # CIF test structures
-│   │   └── qe-input/   # Reference QE input files
-│   ├── band_kpath/     # Si band structure reference data
-│   ├── elastic_si_prim/
-│   │   ├── elastic_setup.dat     # ndeltas=5, max_delta=0.03
-│   │   └── elastic_results.txt  # C11=164, C12=66, C44=105 GPa
-│   ├── elastic_si_low/
-│   └── elastic_al/
-└── third_party/        # (not committed — see INSTALL.md)
-    └── matplot-install/
-```
-
----
-
 ## Dependencies
 
 | Dependency | Notes |
@@ -355,23 +258,6 @@ QEPP/
 | Quantum ESPRESSO ≥ 7.x | `pw.x`, `dos.x`, `bands.x`, `projwfc.x` must be on `PATH` |
 
 See [INSTALL.md](INSTALL.md) for full build instructions.
-
----
-
-## Validated Reference: Si (diamond cubic)
-
-Input: 2-atom primitive cell, PBE, `ecutwfc=30 Ry`, 4×4×4 k-mesh, ±3 % strain, 5 points.
-
-| Property | Computed | Literature |
-|----------|----------|------------|
-| C₁₁ | 164.1 GPa | 165–167 GPa |
-| C₁₂ | 65.7 GPa | 63–65 GPa |
-| C₄₄ | 104.8 GPa | 79–80 GPa (LDA closer) |
-| K_H | 98.5 GPa | 97–99 GPa |
-| G_H | 77.3 GPa | 66–68 GPa |
-| Θ_D | 697 K | 640–680 K |
-| Pugh K/G | 1.27 (brittle) | brittle ✓ |
-| Cauchy C₁₂−C₄₄ | −39 GPa (covalent) | covalent ✓ |
 
 ---
 
