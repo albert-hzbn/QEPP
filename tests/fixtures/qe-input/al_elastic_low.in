@@ -1,0 +1,35 @@
+&CONTROL
+  calculation = 'scf'
+  prefix = 'al'
+  outdir = './tmp'
+  pseudo_dir = '/home/albert/Softwares/qe_p/tests/elastic_al/pseudo'
+/
+&SYSTEM
+  ibrav = 0
+  nat = 4
+  ntyp = 1
+  ecutwfc = 30
+  ecutrho = 120
+  occupations = 'smearing'
+  smearing = 'mp'
+  degauss = 0.02
+/
+&ELECTRONS
+  conv_thr = 1.0e-8
+/
+ATOMIC_SPECIES
+  Al  26.9815  Al_ONCV_PBE-1.0.upf
+
+CELL_PARAMETERS angstrom
+  4.046000  0.000000  0.000000
+  0.000000  4.046000  0.000000
+  0.000000  0.000000  4.046000
+
+ATOMIC_POSITIONS crystal
+  Al  0.000000  0.000000  0.000000
+  Al  0.500000  0.500000  0.000000
+  Al  0.500000  0.000000  0.500000
+  Al  0.000000  0.500000  0.500000
+
+K_POINTS automatic
+  6 6 6 0 0 0

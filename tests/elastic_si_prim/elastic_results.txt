@@ -1,0 +1,83 @@
+------------------------------------------------------------------------
+  ELASTIC CONSTANTS REPORT
+  Crystal family : cubic
+------------------------------------------------------------------------
+
+Stiffness matrix C_ij (GPa):
+     164.088    65.706    65.706     0.000     0.000     0.000
+      65.706   164.088    65.706     0.000     0.000     0.000
+      65.706    65.706   164.088     0.000     0.000     0.000
+       0.000     0.000     0.000   104.765     0.000     0.000
+       0.000     0.000     0.000     0.000   104.765     0.000
+       0.000     0.000     0.000     0.000     0.000   104.765
+
+Compliance matrix S_ij (1/GPa):
+      0.007904   -0.002260   -0.002260    0.000000    0.000000    0.000000
+     -0.002260    0.007904   -0.002260    0.000000    0.000000    0.000000
+     -0.002260   -0.002260    0.007904    0.000000    0.000000    0.000000
+      0.000000    0.000000    0.000000    0.009545    0.000000    0.000000
+      0.000000    0.000000    0.000000    0.000000    0.009545    0.000000
+      0.000000    0.000000    0.000000    0.000000    0.000000    0.009545
+------------------------------------------------------------------------
+  Elastic moduli — Voigt / Reuss / Hill average (GPa)
+  Ref: Voigt, Lehrbuch der Kristallphysik (1928);
+       Reuss, ZAMM 9 (1929) 49;
+       Hill, Proc. Phys. Soc. A 65 (1952) 349
+------------------------------------------------------------------------
+  Bulk modulus    K_V=  98.500  K_R=  98.500  K_H=  98.500
+  Shear modulus   G_V=  82.536  G_R=  72.157  G_H=  77.346
+  Young's modulus E_H= 183.903 GPa
+  Poisson's ratio v_H=   0.189
+  Zener anisotropy AZ=   2.130  [Zener, Elasticity & Anelasticity of Metals (1948)]
+------------------------------------------------------------------------
+  Lame constants (Hill, GPa)
+  Ref: Landau & Lifshitz, Theory of Elasticity, 3rd ed. (1986)
+------------------------------------------------------------------------
+  Lambda (1st Lame, λ = K - 2G/3) =     46.936 GPa
+  Mu    (shear,    μ = G)          =     77.346 GPa
+------------------------------------------------------------------------
+  Mechanical character & anisotropy indices
+------------------------------------------------------------------------
+  Pugh's ratio K/G =    1.273  (brittle)  [Pugh, Phil. Mag. 45 (1954) 823]
+  Cauchy pressure C12-C44 =  -39.059 GPa  (covalent)  [Pettifor, Mater. Sci. Tech. 8 (1992) 345]
+  Universal anisotropy A^U =    0.7192  (0 = isotropic)  [Ranganathan & Ostoja-Starzewski, PRL 101 (2008) 055504]
+  Percent anisotropy A_B =     0.00 %
+  Percent anisotropy A_G =     6.71 %
+  Per-plane shear anisotropy (A=1 isotropic):  [Chung & Buessem, J. Appl. Phys. 38 (1967) 2535]
+    A1 {100} =   2.1298    A2 {010} =   2.1298    A3 {001} =   2.1298
+------------------------------------------------------------------------
+  Hardness estimates — Vickers Hv (GPa)
+------------------------------------------------------------------------
+  Chen et al. 2011  Hv = 2(k²G)^0.585 - 3, k=G_H/K_H  :   16.18 GPa  [Intermetallics 19 (2011) 1275]
+  Tian et al. 2012  Hv = 0.92k^1.137 G_H^0.708       :   15.19 GPa  [IJRMHM 33 (2012) 93]
+  Teter     1998    Hv = 0.151 G_V                    :   12.46 GPa  [MRS Bull. 23 (1998) 22]
+  Niu et al. 2012   Hv = G_H(1-2v)/3                 :   16.05 GPa  [J. Phys.: CM 24 (2012) 405401]
+------------------------------------------------------------------------
+  Directional elastic properties
+  Ref: Nye, Physical Properties of Crystals (1957)
+------------------------------------------------------------------------
+  Young's modulus E = 1/S_ii along principal axes:
+    E[100] =   126.513 GPa    E[010] =   126.513 GPa    E[001] =   126.513 GPa
+  Off-axis Young's moduli (cubic symmetry):
+    E[110] =   191.998 GPa    E[111] =   232.032 GPa
+  Linear compressibility β = Σ_j S_ij  (10⁻³/GPa, dL/L per unit pressure):
+    β_x =    3.3841    β_y =    3.3841    β_z =    3.3841  (×10⁻³ GPa⁻¹)
+------------------------------------------------------------------------
+  Sound velocities & thermal properties
+------------------------------------------------------------------------
+  v_L (longitudinal)    =     9304.4 m/s
+  v_T (transverse)      =     5762.8 m/s
+  v_m (mean/Debye)      =     6354.5 m/s
+  Debye temp. Θ_D       =      696.7 K  [Anderson, J. Phys. Chem. Solids 24 (1963) 909]
+  Gruneisen param. γ    =      1.244  [Belomestnykh & Tesleva, Tech. Phys. 49 (2004) 1304]
+  κ_min (CWP)           =     3.1434 W/(m·K)  [Cahill, Watson & Pohl, PRB 46 (1992) 6131]
+  κ_Slack (300K)        =   108.4881 W/(m·K)  [Slack, J. Phys. Chem. Solids 34 (1973) 321]
+  Empirical T_m         =     1522.8 K  [Fine, Brown & Marcus, Scr. Metall. 18 (1984) 951]
+------------------------------------------------------------------------
+  Mechanical stability
+  Ref: Born & Huang, Dynamical Theory of Crystal Lattices (1954);
+       Mouhat & Coudert, Phys. Rev. B 90 (2014) 224104
+------------------------------------------------------------------------
+  STABLE: all Born criteria satisfied and all C eigenvalues > 0
+------------------------------------------------------------------------
+

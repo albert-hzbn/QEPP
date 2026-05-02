@@ -1,0 +1,61 @@
+# ── Build outputs ─────────────────────────────────────────────────────────────
+build/
+*.o
+*.a
+*.d
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# ── Third-party dependencies (too large; see INSTALL.md to build) ─────────────
+third_party/matplotplusplus/
+third_party/matplot-install/
+
+# ── QE scratch / output data ──────────────────────────────────────────────────
+# These are large DFT output files not needed in source control.
+**/tmp/
+**/*.wfc*
+**/*.dat.wfc*
+**/*.igk_k*
+**/*.save/
+*.out
+
+# ── Test DFT calculation directories (strain subdirs with full pw.x runs) ─────
+# Keep: input files (*.in), reference results, pseudopotentials.
+# Exclude: large pw.x output trees.
+tests/elastic_si/e*/
+tests/elastic_si/e1e2e3/
+tests/elastic_si_low/e*/
+tests/elastic_si_prim/e*/
+tests/elastic_al/e*/
+tests/band_kpath/tmp
+
+# ── run_si_dos generated files ─────────────────────────────────────────────────
+run_si_dos/tmp/
+run_si_dos/*.pdos_atm*
+run_si_dos/*.pdos_tot
+run_si_dos/si_projwfc.*
+run_si_dos/si_pdos_test.*
+run_si_dos/*.png
+run_si_dos/*.dat
+run_si_dos/*.gnuplot
+run_si_dos/si_auto.*
+run_si_dos/si_plot*
+run_si_dos/si_bands_plot.*
+run_si_dos/si_bands.out
+run_si_dos/si_nscf.out
+run_si_dos/si_scf.out
+run_si_dos/si_dos.out
+run_si_dos/si_bands_pp.out
+
+# ── Editor / IDE ───────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*~
+*.orig
+.DS_Store
+
+# ── QE crash dumps ─────────────────────────────────────────────────────────────
+CRASH
