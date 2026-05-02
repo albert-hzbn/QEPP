@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "qe/band.hpp"
+#include "qe/charge.hpp"
 #include "qe/cif.hpp"
 #include "qe/dos.hpp"
 #include "qe/elastic.hpp"
@@ -250,6 +251,32 @@ static int handle_elastic_post_mode(int argc, char** argv, int s = 0) {
     return 0;
 }
 
+static int handle_charge_pre_mode(int argc, char** argv, int s = 0) {
+    if (argc < 3 + s || argc > 4 + s) {
+        print_help_command(argv[0], "charge", "-pre");
+        return 1;
+    }
+    const std::string scfIn   = argv[2 + s];
+    const std::string outDir  = (argc >= 4 + s) ? argv[3 + s]
+                                                 : stem_from_path(scfIn) + "_charge";
+    write_pp_inputs(scfIn, outDir);
+    return 0;
+}
+
+static int handle_charge_post_mode(int argc, char** argv, int s = 0) {
+    if (argc < 3 + s || argc > 5 + s) {
+        print_help_command(argv[0], "charge", "-post");
+        return 1;
+    }
+    const std::string cubePath   = argv[2 + s];
+    const std::string outPrefix  = (argc >= 4 + s)
+                                       ? argv[3 + s]
+                                       : stem_from_path(cubePath);
+    const std::string quantity   = (argc >= 5 + s) ? argv[4 + s] : "charge";
+    write_charge_plots(cubePath, outPrefix, quantity);
+    return 0;
+}
+
 }  // namespace qe
 
 static void print_help(const char* prog) {
@@ -269,6 +296,8 @@ static void print_help(const char* prog) {
         "  kpath   -pre   Suggest a high-symmetry k-path from a CIF file\n"
         "  elastic -pre   Generate deformed SCF inputs for elastic constants\n"
         "  elastic -post  Collect energies and compute elastic constants\n"
+        "  charge  -pre   Generate pp.x inputs for charge density / charge diff / ELF\n"
+        "  charge  -post  Plot volumetric data from a cube file\n"
         "\n"
         "Run '" << prog << " help <command>' or '" << prog << " <command> --help' for details.\n";
 }
@@ -483,6 +512,63 @@ static void print_help_command(const char* prog, const std::string& cmd,
                 "Run '" << prog << " elastic -pre --help' or '" << prog << " elastic -post --help' for details.\n";
         }
     }
+    else if (cmd == "charge") {
+        if (sub == "-pre") {
+            std::cout <<
+                "DESCRIPTION\n"
+                "  Generates three pp.x input files for QE post-processing:\n"
+                "    charge density         (plot_num=0)\n"
+                "    charge-density difference (plot_num=6)\n"
+                "    electron localisation function, ELF (plot_num=8)\n"
+                "\n"
+                "USAGE\n"
+                "  " << prog << " charge -pre <scf.in> [outdir]\n"
+                "\n"
+                "ARGUMENTS\n"
+                "  scf.in    QE SCF input file (used to extract prefix and outdir)\n"
+                "  outdir    Directory where pp.x inputs are written (default: <stem>_charge/)\n"
+                "\n"
+                "OUTPUT\n"
+                "  <outdir>/<prefix>.charge.pp.in\n"
+                "  <outdir>/<prefix>.charge_diff.pp.in\n"
+                "  <outdir>/<prefix>.elf.pp.in\n"
+                "\n"
+                "EXAMPLES\n"
+                "  " << prog << " charge -pre si.scf.in si_charge\n";
+        } else if (sub == "-post") {
+            std::cout <<
+                "DESCRIPTION\n"
+                "  Reads a Gaussian cube file produced by QE pp.x and generates:\n"
+                "    <outprefix>.slice.png  — three orthogonal midplane heatmaps (XY, XZ, YZ)\n"
+                "    <outprefix>.3d.png     — 3-D scatter of high-value points (isosurface proxy)\n"
+                "\n"
+                "USAGE\n"
+                "  " << prog << " charge -post <cube_file> [outprefix] [quantity]\n"
+                "\n"
+                "ARGUMENTS\n"
+                "  cube_file   Cube file produced by pp.x (output_format=6)\n"
+                "  outprefix   Output filename prefix (default: stem of cube_file)\n"
+                "  quantity    One of: charge (default), charge_diff, elf\n"
+                "              Affects colour map and thresholding\n"
+                "\n"
+                "EXAMPLES\n"
+                "  " << prog << " charge -post si.charge.cube si_charge charge\n"
+                "  " << prog << " charge -post si.charge_diff.cube si_charge_diff charge_diff\n"
+                "  " << prog << " charge -post si.elf.cube si_elf elf\n";
+        } else {
+            std::cout <<
+                "USAGE\n"
+                "  " << prog << " charge -pre  <scf.in> [outdir]\n"
+                "  " << prog << " charge -post <cube_file> [outprefix] [quantity]\n"
+                "\n"
+                "WORKFLOW\n"
+                "  1. " << prog << " charge -pre si.scf.in si_charge\n"
+                "  2. cd si_charge && pp.x < si.charge.pp.in > si.charge.pp.out\n"
+                "  3. " << prog << " charge -post si.charge.cube si_charge charge\n"
+                "\n"
+                "Run '" << prog << " charge -pre --help' or '" << prog << " charge -post --help' for details.\n";
+        }
+    }
     else {
         std::cerr << "Unknown command '" << cmd << "'. Run '" << prog << " help' for the list.\n";
     }
@@ -547,6 +633,12 @@ int main(int argc, char** argv) {
             if (sub == "-pre")  return qe::handle_elastic_pre_mode(argc, argv, 1);
             if (sub == "-post") return qe::handle_elastic_post_mode(argc, argv, 1);
             print_help_command(argv[0], "elastic", "");
+            return 1;
+        }
+        if (mode == "charge") {
+            if (sub == "-pre")  return qe::handle_charge_pre_mode(argc, argv, 1);
+            if (sub == "-post") return qe::handle_charge_post_mode(argc, argv, 1);
+            print_help_command(argv[0], "charge", "");
             return 1;
         }
 

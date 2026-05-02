@@ -21,6 +21,7 @@ add_executable(
 	src/dos.cpp
 	src/band.cpp
 	src/elastic.cpp
+	src/charge.cpp
 )
 target_include_directories(qepp PRIVATE include)
 target_link_libraries(qepp PRIVATE Matplot++::matplot Eigen3::Eigen)
