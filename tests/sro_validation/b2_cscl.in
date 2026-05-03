@@ -1,0 +1,12 @@
+&SYSTEM
+  ibrav = 0
+  nat   = 2
+  ntyp  = 2
+/
+CELL_PARAMETERS angstrom
+  3.00  0.00  0.00
+  0.00  3.00  0.00
+  0.00  0.00  3.00
+ATOMIC_POSITIONS crystal
+  A  0.0  0.0  0.0
+  B  0.5  0.5  0.5
