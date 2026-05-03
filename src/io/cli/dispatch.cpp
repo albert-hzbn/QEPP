@@ -125,6 +125,12 @@ int dispatch_cli(int argc, char** argv) {
         print_help_command(argv[0], "qha", "");
         return 1;
     }
+    if (mode == "qha_elastic") {
+        if (sub == "-pre")  return qe::handle_qha_elastic_pre_mode(argc, argv, 1);
+        if (sub == "-post") return qe::handle_qha_elastic_post_mode(argc, argv, 1);
+        print_help_command(argv[0], "qha_elastic", "");
+        return 1;
+    }
     if (mode == "phonon") {
         if (sub == "-pre")  return qe::handle_phonon_pre_mode(argc, argv, 1);
         if (sub == "-post") return qe::handle_phonon_post_mode(argc, argv, 1);

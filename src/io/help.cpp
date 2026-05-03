@@ -766,6 +766,66 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  " << prog << " phonon -ha si.phonon.dos --natom 2 --tmin 100 --tmax 1500 si_ha\n";
         }
     }
+    // ── qha_elastic ──────────────────────────────────────────────────────────
+    else if (cmd == "qha_elastic") {
+        if (sub.empty() || sub == "-pre") {
+            std::cout <<
+                "DESCRIPTION (-pre)\n"
+                "  Generate all inputs for a temperature-dependent elastic constant calculation\n"
+                "  within the quasi-harmonic approximation (QHA).\n"
+                "  For each of N volume-scaled cells it creates:\n"
+                "    <outDir>/v01/  …  vNN/\n"
+                "      <prefix>.in          volume-scaled QE SCF input\n"
+                "      elastic/             strain-deformed SCF inputs (energy-strain method)\n"
+                "      dfpt/                phonon inputs (ph.x, q2r.x, matdyn_dos.in)\n"
+                "    qha_elastic_summary.in\n"
+                "\n"
+                "USAGE\n"
+                "  " << prog << " qha_elastic -pre <scf.in>\n"
+                "                    [--nvolumes N]   [--range R]\n"
+                "                    [--ndeltas N]    [--maxdelta D]\n"
+                "                    [--outdir D]\n"
+                "\n"
+                "OPTIONS\n"
+                "  --nvolumes N    Number of volumes (default: 7, must be >= 4)\n"
+                "  --range R       Total volume range in % (default: 10 → ±5% around V₀)\n"
+                "  --ndeltas N     Strain points per pattern, odd (default: 7)\n"
+                "  --maxdelta D    Max strain amplitude (default: 0.04)\n"
+                "  --outdir D      Output root directory\n"
+                "\n"
+                "EXAMPLES\n"
+                "  " << prog << " qha_elastic -pre si_scf.in\n"
+                "  " << prog << " qha_elastic -pre si_scf.in --nvolumes 9 --range 12 --outdir si_qha_el\n";
+        }
+        if (sub.empty() || sub == "-post") {
+            std::cout <<
+                "DESCRIPTION (-post)\n"
+                "  Read a qha_elastic_summary.in, run elastic post-processing for each volume,\n"
+                "  read phonon DOS files, and compute temperature-dependent C_ij(T) tensors.\n"
+                "\n"
+                "  Two contributions are computed and summed:\n"
+                "    1. Quasi-static C_ij^{QS}(T): static elastic tensor interpolated to V(T)\n"
+                "    2. Phonon bulk correction B^{ph}(T) = V·d²F_vib/dV² added to normal\n"
+                "       components; leaves shear constants unchanged.\n"
+                "\n"
+                "USAGE\n"
+                "  " << prog << " qha_elastic -post <qha_elastic_summary.in>\n"
+                "                     [output_prefix]\n"
+                "                     [--tmin T] [--tmax T] [--dt T]\n"
+                "\n"
+                "OPTIONS\n"
+                "  --tmin T    Minimum temperature in K (default: 0)\n"
+                "  --tmax T    Maximum temperature in K (default: 1500)\n"
+                "  --dt T      Temperature step in K    (default: 10)\n"
+                "\n"
+                "OUTPUTS\n"
+                "  <prefix>.qha_elastic.txt  Full C_ij(T) table + VRH moduli vs temperature\n"
+                "\n"
+                "EXAMPLES\n"
+                "  " << prog << " qha_elastic -post si_qha_el/qha_elastic_summary.in\n"
+                "  " << prog << " qha_elastic -post si_qha_el/qha_elastic_summary.in --tmin 0 --tmax 1000 --dt 50\n";
+        }
+    }
     else {
         std::cerr << "Unknown command '" << cmd << "'. Run '" << prog << " help' for the list.\n";
     }

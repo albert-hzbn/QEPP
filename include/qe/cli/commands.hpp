@@ -32,6 +32,9 @@ int handle_parse_mode(int argc, char** argv, int s = 0);
 int handle_qha_pre_mode(int argc, char** argv, int s = 0);
 int handle_qha_post_mode(int argc, char** argv, int s = 0);
 
+int handle_qha_elastic_pre_mode(int argc, char** argv, int s = 0);
+int handle_qha_elastic_post_mode(int argc, char** argv, int s = 0);
+
 int handle_phonon_pre_mode(int argc, char** argv, int s = 0);
 int handle_phonon_post_mode(int argc, char** argv, int s = 0);
 int handle_phonon_dos_mode(int argc, char** argv, int s = 0);

@@ -107,6 +107,9 @@ add_executable(
 	src/algorithm/qha.cpp
 	src/io/qha.cpp
 	src/io/cli/qha.cpp
+	src/algorithm/qha_elastic.cpp
+	src/io/qha_elastic.cpp
+	src/io/cli/qha_elastic.cpp
 	src/algorithm/harmonic.cpp
 	src/algorithm/dfpt.cpp
 	src/io/dfpt.cpp
