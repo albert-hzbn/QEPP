@@ -98,6 +98,29 @@ The `qepp` binary is placed at `build/qepp`.
 > the first configure step).  The produced binary has **no runtime dependency**
 > on `libsymspg.so` and can be copied to any machine without installing spglib.
 
+> **libstdc++ / libgcc** are also linked statically in Release builds, so the
+> binary does not require a matching C++ runtime on the target machine.
+
+### Portable binary for older systems (GLIBC 2.31+)
+
+If the target machine has an older GLIBC (e.g. Ubuntu 20.04 / RHEL 8) you will
+get a `GLIBC_2.3x not found` error at runtime.  Build inside a Docker container
+that uses Ubuntu 20.04 as its base to produce a compatible binary:
+
+```bash
+# One-shot helper (requires Docker)
+./release.sh --docker
+
+# The portable binary is written to build-docker/qepp
+```
+
+Or manually:
+
+```bash
+docker build --target builder -t qepp-builder .
+docker run --rm -v "$PWD/build-docker:/out" qepp-builder cp /src/build/qepp /out/qepp
+```
+
 ### Optional — install to PATH
 
 ```bash

@@ -96,6 +96,12 @@ add_executable(
 target_include_directories(qepp PRIVATE include)
 target_link_libraries(qepp PRIVATE Matplot++::matplot Eigen3::Eigen)
 
+# Statically link the C++ and GCC runtime so the binary does not require a
+# matching libstdc++.so / libgcc_s.so on the target machine.
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_link_options(qepp PRIVATE -static-libstdc++ -static-libgcc)
+endif()
+
 if(QEPP_USE_SPGLIB AND SPGLIB_TARGET)
     target_compile_definitions(qepp PRIVATE HAVE_SPGLIB)
     if(SPGLIB_USE_IMPORTED AND SPGLIB_TARGET_INC)
