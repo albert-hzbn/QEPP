@@ -9,8 +9,40 @@ find_package(Matplot++ REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 # Optional: spglib for space-group detection
-find_library(SPGLIB_LIB symspg)
-find_path(SPGLIB_INC spglib.h)
+# For Release builds the static archive is preferred; if not found on the system
+# spglib is automatically downloaded and compiled as a static library via FetchContent
+# so the resulting binary has no runtime dependency on libsymspg.so.
+# Set -DQEPP_USE_SPGLIB=OFF to disable spglib entirely.
+option(QEPP_USE_SPGLIB "Use spglib for space-group detection" ON)
+
+if(QEPP_USE_SPGLIB)
+    find_library(SPGLIB_LIB_STATIC NAMES libsymspg.a)
+    find_path(SPGLIB_INC spglib.h)
+
+    if(SPGLIB_LIB_STATIC AND SPGLIB_INC)
+        # System static archive found — use it directly
+        set(SPGLIB_TARGET "${SPGLIB_LIB_STATIC}")
+        set(SPGLIB_TARGET_INC "${SPGLIB_INC}")
+        set(SPGLIB_USE_IMPORTED ON)
+        message(STATUS "spglib static library: ${SPGLIB_LIB_STATIC}")
+    else()
+        # No system static archive — build spglib from source (always static)
+        include(FetchContent)
+        set(SPGLIB_SHARED_LIBS OFF CACHE BOOL "Build spglib as static library" FORCE)
+        set(BUILD_SHARED_LIBS OFF)
+        FetchContent_Declare(
+            spglib
+            GIT_REPOSITORY https://github.com/spglib/spglib.git
+            GIT_TAG        v2.3.1
+            GIT_SHALLOW    ON
+        )
+        FetchContent_MakeAvailable(spglib)
+        set(SPGLIB_TARGET Spglib::symspg)
+        set(SPGLIB_TARGET_INC "")  # propagated through the imported target
+        set(SPGLIB_USE_IMPORTED OFF)
+        message(STATUS "spglib built from source as static library (FetchContent)")
+    endif()
+endif()
 
 add_executable(
 	qepp
@@ -64,11 +96,14 @@ add_executable(
 target_include_directories(qepp PRIVATE include)
 target_link_libraries(qepp PRIVATE Matplot++::matplot Eigen3::Eigen)
 
-if(SPGLIB_LIB AND SPGLIB_INC)
+if(QEPP_USE_SPGLIB AND SPGLIB_TARGET)
     target_compile_definitions(qepp PRIVATE HAVE_SPGLIB)
-    target_include_directories(qepp PRIVATE ${SPGLIB_INC})
-    target_link_libraries(qepp PRIVATE ${SPGLIB_LIB})
-    message(STATUS "spglib found: ${SPGLIB_LIB}")
+    if(SPGLIB_USE_IMPORTED AND SPGLIB_TARGET_INC)
+        target_include_directories(qepp PRIVATE ${SPGLIB_TARGET_INC})
+    endif()
+    target_link_libraries(qepp PRIVATE ${SPGLIB_TARGET})
+elseif(NOT QEPP_USE_SPGLIB)
+    message(STATUS "spglib disabled — crystal family detection will use ibrav fallback")
 else()
     message(STATUS "spglib NOT found — crystal family detection will use ibrav fallback")
 endif()

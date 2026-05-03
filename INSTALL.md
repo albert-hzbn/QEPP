@@ -9,6 +9,7 @@
 | [Eigen3](https://eigen.tuxfamily.org/) | 3.3 | Header-only; used for lattice / k-vector math |
 | [Matplot++](https://alandefreitas.github.io/matplotplusplus/) | 1.1 | Plotting backend |
 | [gnuplot](http://www.gnuplot.info/) | 5.4 | Runtime requirement for Matplot++ PNG output |
+| [spglib](https://spglib.readthedocs.io/) | 2.3 | Space-group detection; **fetched and built automatically** if not found as a system static library |
 | [Quantum ESPRESSO](https://www.quantum-espresso.org/) | 7.x | `pw.x`, `dos.x`, `bands.x` must be on `PATH` |
 
 ---
@@ -90,6 +91,12 @@ cmake --build build -j $(nproc)
 ```
 
 The `qepp` binary is placed at `build/qepp`.
+
+> **spglib** is linked statically into the binary.  
+> If a system `libsymspg.a` is not found, CMake downloads and compiles
+> spglib v2.3.1 from source automatically (requires internet access during
+> the first configure step).  The produced binary has **no runtime dependency**
+> on `libsymspg.so` and can be copied to any machine without installing spglib.
 
 ### Optional — install to PATH
 
