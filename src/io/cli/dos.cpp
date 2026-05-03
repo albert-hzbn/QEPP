@@ -34,7 +34,10 @@ int handle_dos_mode(int argc, char** argv, int s) {
 
     const auto dosRows = parse_dos_table(dosPath);
     write_dos_plot_bundle(dosPath, dosRows, fermiEv, outPrefix);
-    write_pdos_plots(dosPath, dosRows, fermiEv, outPrefix);
+    const auto pdos = write_pdos_plots(dosPath, dosRows, fermiEv, outPrefix);
+
+    const auto dband = estimate_d_band_metrics(pdos, fermiEv);
+    write_d_band_report(dband, outPrefix);
     return 0;
 }
 

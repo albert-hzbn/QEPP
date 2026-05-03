@@ -11,7 +11,7 @@ All plots are rendered as high-resolution PNG files via [Matplot++](https://alan
 | Command | Sub-flag | Description |
 |---------|----------|-------------|
 | `cif`     | `-pre`  | Generate a QE `pw.x` SCF input from a CIF structure file |
-| `dos`     | `-post` | Plot total DOS and partial DOS (PDOS) from `dos.x` / `projwfc.x` output |
+| `dos`     | `-post` | Plot total DOS/PDOS and estimate d-band center/width from `dos.x` / `projwfc.x` output |
 | `band`    | `-pre`  | Auto-generate band-structure inputs (`pw.x` + `bands.x`) from a CIF |
 | `band`    | `-post` | Plot electronic band structure from `bands.x` output |
 | `kpath`   | `-pre`  | Suggest and print the standard high-symmetry k-path for a structure |
@@ -43,6 +43,18 @@ All plots are rendered as high-resolution PNG files via [Matplot++](https://alan
   - `.pdos_elem.png` — elemental contributions (one curve per element + total DOS)
   - `.pdos_orb.png` — orbital-type contributions (s, p, d, f sums + total DOS)
   - Spin-polarised output is detected and handled automatically
+- **d-band descriptors** (when d-PDOS exists): writes `.dband.txt` with
+  - **old methodology**: occupied-only moments ($E \le E_F$)
+  - **new methodology**: full d-band moments (all sampled energies)
+  - reported values: d-band center and d-band width ($\sigma$ from second central moment)
+
+  Using the d-projected DOS $D_d(E)$, QEPP reports:
+  - $\mu_d = \dfrac{\int E\,D_d(E)\,dE}{\int D_d(E)\,dE}$
+  - $\sigma_d = \sqrt{\dfrac{\int E^2\,D_d(E)\,dE}{\int D_d(E)\,dE} - \mu_d^2}$
+
+  where the integration range depends on the selected methodology:
+  - old: up to $E_F$
+  - new: full sampled energy range
 
 ### band — Band Structure Plotting
 - Parses QE `filband` output (the `nbnd`/`nks` header format produced by `bands.x`)
@@ -143,6 +155,23 @@ qepp dos -post si.dos si_scf.out si_dos_plot
 #   si_dos_plot.dos.png       (total DOS)
 #   si_dos_plot.pdos_elem.png (elemental PDOS — if projwfc.x files present)
 #   si_dos_plot.pdos_orb.png  (orbital PDOS  — if projwfc.x files present)
+#   si_dos_plot.dband.txt     (d-band center/width report — if d-PDOS exists)
+```
+
+**Inspect d-band descriptor output:**
+```text
+=== d-band descriptors from PDOS ===
+Method: old (occupied states up to E_F)
+  d-band center (eV)    : -1.234567
+  center - E_F (eV)     : -2.345678
+  d-band width (eV)     : 1.456789
+  integrated d-DOS area : 5.432100
+
+Method: new (full d-band moment over all states)
+  d-band center (eV)    : -0.987654
+  center - E_F (eV)     : -2.098765
+  d-band width (eV)     : 1.678901
+  integrated d-DOS area : 8.765400
 ```
 
 **Plot a band structure with labelled k-path:**
@@ -231,6 +260,7 @@ qepp parse -post si_scf.out si_summary
 | `.dos.png` | Total DOS plot (Matplot++) |
 | `.pdos_elem.png` | Elemental PDOS contributions plot |
 | `.pdos_orb.png` | Orbital-type PDOS (s/p/d/f) plot |
+| `.dband.txt` | d-band center and width (old occupied-only + new full-band methods) |
 | `.band.dat` | Two-column (k-dist, E−E_F) text data, bands separated by blank lines |
 | `.band.png` | Band structure plot with k-path labels (Matplot++) |
 | `elastic_setup.dat` | Run parameters: `ndeltas`, `max_delta` |

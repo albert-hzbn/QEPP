@@ -4,6 +4,7 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -252,6 +253,41 @@ PdosSummary parse_pdos_summary(const std::string& dosPath) {
     }
 
     return summary;
+}
+
+void write_d_band_report(const DBandMetrics& metrics, const std::string& outPrefix) {
+    const std::string txtPath = outPrefix + ".dband.txt";
+    std::ofstream out(txtPath);
+    if (!out.is_open()) {
+        throw std::runtime_error("Could not create d-band report file: " + txtPath);
+    }
+
+    auto writeMethod = [&](std::ostream& os, const DBandMethodEstimate& m) {
+        os << "Method: " << m.method << "\n";
+        if (!m.valid) {
+            os << "  status               : unavailable (insufficient DOS weight in integration range)\n\n";
+            return;
+        }
+        os << std::fixed << std::setprecision(6);
+        os << "  d-band center (eV)    : " << m.centerEv << "\n";
+        os << "  center - E_F (eV)     : " << m.centerMinusEfEv << "\n";
+        os << "  d-band width (eV)     : " << m.widthEv << "\n";
+        os << "  integrated d-DOS area : " << m.integratedWeight << "\n\n";
+    };
+
+    auto writeAll = [&](std::ostream& os) {
+        os << "=== d-band descriptors from PDOS ===\n";
+        if (!metrics.hasDOrbital) {
+            os << "No d-orbital PDOS channels were found (orbital 'd' absent).\n";
+            return;
+        }
+        writeMethod(os, metrics.oldMethod);
+        writeMethod(os, metrics.newMethod);
+    };
+
+    writeAll(std::cout);
+    writeAll(out);
+    std::cout << "Saved d-band report: " << txtPath << "\n";
 }
 
 }  // namespace qe

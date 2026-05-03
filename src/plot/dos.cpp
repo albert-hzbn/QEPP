@@ -93,18 +93,18 @@ void write_dos_plot_bundle(const std::string& dosInputPath,
 
 namespace qe {
 
-void write_pdos_plots(const std::string& dosPath,
-                      const std::vector<std::vector<double>>& totalDosRows,
-                      double fermiEv,
-                      const std::string& outPrefix) {
-    if (totalDosRows.empty()) return;
+PdosSummary write_pdos_plots(const std::string& dosPath,
+                             const std::vector<std::vector<double>>& totalDosRows,
+                             double fermiEv,
+                             const std::string& outPrefix) {
+    if (totalDosRows.empty()) return {};
 
     const auto pdos = parse_pdos_summary(dosPath);
     if (pdos.channelCount == 0) {
         std::cout << "  No PDOS files found — looked for '<prefix>.pdos_atm#*'"
                   << " alongside the DOS input file.\n"
                   << "  Run projwfc.x first to generate partial-DOS files.\n";
-        return;
+        return pdos;
     }
 
     // Total DOS energy axis (for background grey line)
@@ -207,6 +207,8 @@ void write_pdos_plots(const std::string& dosPath,
     std::cout << " |  " << pdos.byOrbital.size() << " orbital type(s): ";
     for (const auto& [o, _] : pdos.byOrbital) std::cout << o << " ";
     std::cout << "\n";
+
+    return pdos;
 }
 
 }  // namespace qe
