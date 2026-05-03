@@ -25,7 +25,7 @@ All plots are rendered as high-resolution PNG files via [Matplot++](https://alan
 | `bader`   | `-post` | Parse Henkelman `ACF.dat` and report per-atom Bader charges |
 | `conv`    | `-pre`  | Generate convergence sweep SCF inputs for `ecutwfc` or `kspacing` |
 | `conv`    | `-post` | Parse sweep energies and produce convergence table + plot |
-| `struct`  | `-post` | Print lattice parameters, cell vectors, and atom coordinates from SCF input |
+| `struct`  | `-post` | Print structure summary and estimate Warren-Cowley SRO from QE input/output |
 | `parse`   | `-post` | Parse QE `pw.x` output summary (energy, Fermi, force, pressure, timing) |
 
 ### cif — SCF Input Generation
@@ -99,6 +99,10 @@ VRH-averaged moduli (K, G, E, ν), Lamé constants, anisotropy indices, Vickers 
 - Supports explicit `CELL_PARAMETERS` (`ibrav=0`) and common cubic
   `ibrav` fallbacks (`1`, `2`, `3`) using `celldm(1)`/`A`.
 - Writes `<prefix>.struct.txt`.
+- Optional Warren-Cowley SRO analysis (`--sro`) for neighbor shells:
+  - $\alpha_{ij}^{(s)} = 1 - P(j|i,s)/c_j$
+  - supports both QE input and QE output structures (`--source input|output|auto`)
+  - writes `<prefix>.sro.txt`
 
 ### parse — QE Output Summary Parser
 - Parses a QE `pw.x` output file and extracts:
@@ -136,7 +140,7 @@ qepp stm     -post <stm.cube> [prefix] [height_ang]
 qepp bader   -post <ACF.dat> [scf.in] [prefix]
 qepp conv    -pre  <scf.in> <ecutwfc|kspacing> <min> <max> <step> [outdir]
 qepp conv    -post <outdir> <ecutwfc|kspacing> [prefix]
-qepp struct  -post <scf.in> [prefix]
+qepp struct  -post <structure_file> [prefix] [--sro] [--nshells N] [--tol T] [--source input|output|auto]
 qepp parse   -post <qe.out> [prefix]
 ```
 
@@ -244,6 +248,16 @@ qepp struct -post si_scf.in si_struct
 # → si_struct.struct.txt
 ```
 
+**Estimate Warren-Cowley SRO from input/output structure:**
+```bash
+# From QE input
+qepp struct -post ni_co.scf.in ni_co --sro --nshells 3
+# From QE relax/vc-relax output (last complete final block)
+qepp struct -post ni_co.relax.out ni_co --sro --source output
+# → ni_co.struct.txt
+#   ni_co.sro.txt
+```
+
 **Parse QE SCF output summary:**
 ```bash
 qepp parse -post si_scf.out si_summary
@@ -271,6 +285,7 @@ qepp parse -post si_scf.out si_summary
 | `.conv.txt` | Convergence table for sweep results |
 | `.conv.png` | Convergence curve plot ($|\Delta E|$ in meV/atom) |
 | `.struct.txt` | Structure summary from QE SCF input |
+| `.sro.txt` | Warren-Cowley SRO table by neighbor shell and element pair |
 | `.parse.txt` | Parsed QE output summary |
 
 ---

@@ -516,16 +516,28 @@ void print_help_command(const char* prog, const std::string& cmd,
             "  of fractional and Cartesian coordinates. Supports CELL_PARAMETERS (ibrav=0)\n"
             "  and common cubic ibrav values (1, 2, 3) via celldm(1) / A.\n"
             "\n"
+            "  Optional: estimate Warren-Cowley short-range-order (SRO) parameters\n"
+            "  alpha_ij^s = 1 - P(j|i,s)/c_j for neighbor shells s.\n"
+            "  If --source output is used (or --source auto on *.out), QE final coordinates\n"
+            "  are parsed from the last complete CELL_PARAMETERS / ATOMIC_POSITIONS blocks.\n"
+            "\n"
             "USAGE\n"
-            "  " << prog << " struct -post <scf.in> [output_prefix]\n"
+            "  " << prog << " struct -post <structure_file> [output_prefix] [--sro] [--nshells N] [--tol T] [--source input|output|auto]\n"
             "\n"
             "ARGUMENTS\n"
-            "  scf.in         QE pw.x SCF input file\n"
-            "  output_prefix  Prefix for <prefix>.struct.txt (default: stem of scf.in)\n"
+            "  structure_file QE pw.x SCF input, or QE output file containing final coordinates\n"
+            "  output_prefix  Prefix for <prefix>.struct.txt and <prefix>.sro.txt\n"
+            "                (default: stem of structure_file)\n"
+            "  --sro          Enable Warren-Cowley SRO estimation\n"
+            "  --nshells N    Number of neighbor shells to include (default: 2)\n"
+            "  --tol T        Shell clustering tolerance in Angstrom (default: 1e-3)\n"
+            "  --source ...   input | output | auto (default: auto)\n"
             "\n"
             "EXAMPLES\n"
             "  " << prog << " struct -post si.scf.in\n"
-            "  " << prog << " struct -post al.scf.in al_struct\n";
+            "  " << prog << " struct -post al.scf.in al_struct\n"
+            "  " << prog << " struct -post ni_co.scf.in ni_co --sro --nshells 3\n"
+            "  " << prog << " struct -post ni_co.relax.out ni_co --sro --source output\n";
     }
     // ── parse ─────────────────────────────────────────────────────────────────
     else if (cmd == "parse") {
