@@ -418,14 +418,28 @@ qepp qha -pre si_scf.in --nvolumes 9 --range 12 --outdir si_qha
 # → si_qha/v01/ … si_qha/v09/  (scaled SCF inputs)
 #   si_qha/qha_summary.in       (template; fill in energies after SCF runs)
 
-# 2. Run SCF + DFPT at each volume (parallel, e.g. with a loop)
+# 2. Run SCF + DFPT at each volume
+# All four executables must run from the volume directory (paths in the
+# generated inputs are relative to that directory, not to dfpt/).
 for d in si_qha/v*/; do
-  cd "$d" && mpirun -np 4 pw.x -input si_scf.in > qe.out
-  # run ph.x → q2r.x → matdyn.x (writes si.phonon.dos)
+  cd "$d"
+  mpirun -np 4 pw.x  -input si_scf.in          > qe.out              # SCF
+  mpirun -np 4 ph.x  -input dfpt/ph.in          > dfpt/ph.out         # DFPT phonons
+  q2r.x              < dfpt/q2r.in               > dfpt/q2r.out        # IFCs
+  matdyn.x           < dfpt/matdyn_dos.in        > dfpt/matdyn_dos.out # phonon DOS
+  # → writes <prefix>.phonon.dos in this directory
   cd -
 done
 
-# 3. Fill energies in qha_summary.in, then post-process
+# 2.5 Fill DFT total energies (Ry) into qha_summary.in
+# QE prints the converged energy on lines starting with '!'; sed replaces
+# each TODO_fill_energy placeholder in document order (one per iteration).
+for d in si_qha/v*/; do
+  e=$(grep "!.*total energy" "$d/qe.out" | tail -1 | awk '{print $5}')
+  sed -i "0,/TODO_fill_energy/s/TODO_fill_energy/${e}/" si_qha/qha_summary.in
+done
+
+# 3. Post-process
 qepp qha -post si_qha/qha_summary.in si_qha_results --tmin 0 --tmax 1500 --dt 10
 # → si_qha_results.qha.txt  (V(T), α(T), B_T(T), Cv(T), Cp(T), S(T), γ(T))
 ```

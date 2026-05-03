@@ -51,7 +51,8 @@ std::string join_path(const std::string& dir, const std::string& file) {
 std::vector<std::string> generate_phonon_inputs(
     const std::string& scfInputPath,
     const std::string& outDir,
-    const DfptOptions& opts)
+    const DfptOptions& opts,
+    bool verbose)
 {
     const auto lines = load_lines(scfInputPath);
 
@@ -186,15 +187,17 @@ std::vector<std::string> generate_phonon_inputs(
 
     const std::vector<std::string> generated = {phPath, q2rPath, mdDos, mdBand};
 
-    std::cout << "Generated DFPT input files for prefix = '" << prefix << "':\n";
-    for (const auto& p : generated)
-        std::cout << "  " << p << "\n";
-    std::cout << "\nWorkflow:\n";
-    std::cout << "  1. mpirun ph.x    -in " << phPath  << " > ph.out\n";
-    std::cout << "  2. q2r.x               < " << q2rPath << " > q2r.out\n";
-    std::cout << "  3. matdyn.x            < " << mdDos   << " > matdyn_dos.out\n";
-    std::cout << "  4. matdyn.x            < " << mdBand  << " > matdyn_band.out\n";
-    std::cout << "  5. qepp phonon -post " << prefix << "\n";
+    if (verbose) {
+        std::cout << "Generated DFPT input files for prefix = '" << prefix << "':\n";
+        for (const auto& p : generated)
+            std::cout << "  " << p << "\n";
+        std::cout << "\nWorkflow:\n";
+        std::cout << "  1. mpirun ph.x    -in " << phPath  << " > ph.out\n";
+        std::cout << "  2. q2r.x               < " << q2rPath << " > q2r.out\n";
+        std::cout << "  3. matdyn.x            < " << mdDos   << " > matdyn_dos.out\n";
+        std::cout << "  4. matdyn.x            < " << mdBand  << " > matdyn_band.out\n";
+        std::cout << "  5. qepp phonon -post " << prefix << "\n";
+    }
 
     return generated;
 }

@@ -89,17 +89,21 @@ void qha_generate_volumes(const std::string& qeInputPath,
 // ── I/O ───────────────────────────────────────────────────────────────────────
 
 // Compute QhaVolumePoint thermal maps from a matdyn phonon DOS file.
-// Runs the HA integration over 0..1500 K (step 10 K) in-code.
+// Runs the HA integration over the supplied temperature grid; if tempsIn is
+// empty, defaults to 0..1500 K step 10 K.
 // Accepts matdyn cm-1 or THz format (auto-detected) as well as phonopy total_dos.dat.
 // Returns a populated QhaVolumePoint (fvib/svib/cvib filled, volumeAng3 and energyRy set).
 QhaVolumePoint compute_qha_volume_from_dos(const std::string& dosPath,
                                            double volumeAng3,
-                                           double energyRy);
+                                           double energyRy,
+                                           const std::vector<double>& tempsIn = {});
 
 // Read a QHA summary input file.
-// Format: volume(Ang^3)  energy(Ry)  path/to/si.phonon.dos
+// Format: volume(Ang^3)  energy(Ry)  path/to/<prefix>.phonon.dos
 // Lines starting with '#' are comments.
-std::vector<QhaVolumePoint> read_qha_summary(const std::string& summaryPath);
+// tempsIn: temperature grid (K); if empty, defaults to 0..1500 K step 10 K.
+std::vector<QhaVolumePoint> read_qha_summary(const std::string& summaryPath,
+                                              const std::vector<double>& tempsIn = {});
 
 // Write QHA results to stdout and <outPrefix>.qha.txt
 void write_qha_report(const QhaResult& result, const std::string& outPrefix);

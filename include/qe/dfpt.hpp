@@ -64,10 +64,12 @@ struct DfptOptions {
 //   ph.in, q2r.in, matdyn_dos.in, matdyn_band.in
 //
 // Returns the paths of all generated files.
+// Set verbose=false to suppress stdout (e.g. when called in a loop from qha -pre).
 std::vector<std::string> generate_phonon_inputs(
     const std::string& scfInputPath,
     const std::string& outDir,
-    const DfptOptions& opts = {});
+    const DfptOptions& opts = {},
+    bool verbose = true);
 
 // ── Post-processing parsers ───────────────────────────────────────────────────
 

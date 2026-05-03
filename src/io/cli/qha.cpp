@@ -48,7 +48,7 @@ int handle_qha_pre_mode(int argc, char** argv, int s) {
     return 0;
 }
 
-// ── qepp qha -post <qha_summary.in> [output_prefix] ─────────────────────────
+// ── qepp qha -post <qha_summary.in> [output_prefix] [--tmin T] [--tmax T] [--dt T] ──
 int handle_qha_post_mode(int argc, char** argv, int s) {
     if (argc < 3 + s) {
         print_help_command(argv[0], "qha", "-post");
@@ -62,15 +62,35 @@ int handle_qha_post_mode(int argc, char** argv, int s) {
         to_lower(outPrefix.substr(outPrefix.size() - 3)) == ".in")
         outPrefix = outPrefix.substr(0, outPrefix.size() - 3);
 
-    if (argc > 3 + s) {
-        const std::string next = argv[3 + s];
-        if (next.rfind("--", 0) != 0)
-            outPrefix = next;
-        else
-            throw std::runtime_error("Unknown argument for 'qha -post': " + next);
+    double tMin = 0.0, tMax = 1500.0, dt = 10.0;
+
+    int iStart = 3 + s;
+    // Optional positional output prefix (must not start with --)
+    if (iStart < argc && std::string(argv[iStart]).rfind("--", 0) != 0)
+        outPrefix = argv[iStart++];
+
+    for (int i = iStart; i < argc; ++i) {
+        const std::string arg = argv[i];
+        auto nextDouble = [&](const std::string& flag) {
+            if (i + 1 >= argc)
+                throw std::runtime_error(flag + " requires a numeric value.");
+            return std::stod(argv[++i]);
+        };
+        if      (arg == "--tmin") tMin = nextDouble("--tmin");
+        else if (arg == "--tmax") tMax = nextDouble("--tmax");
+        else if (arg == "--dt")   dt   = nextDouble("--dt");
+        else throw std::runtime_error("Unknown argument for 'qha -post': " + arg);
     }
 
-    const auto points = read_qha_summary(summaryPath);
+    if (tMax <= tMin || dt <= 0.0)
+        throw std::runtime_error("Invalid temperature range: check --tmin/--tmax/--dt.");
+
+    // Build temperature grid
+    std::vector<double> temps;
+    for (double T = tMin; T <= tMax + 1e-6; T += dt)
+        temps.push_back(T);
+
+    const auto points = read_qha_summary(summaryPath, temps);
     const auto result = compute_qha(points);
     write_qha_report(result, outPrefix);
     return 0;
