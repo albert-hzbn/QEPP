@@ -27,6 +27,13 @@ All plots are rendered as high-resolution PNG files via [Matplot++](https://alan
 | `conv`    | `-post` | Parse sweep energies and produce convergence table + plot |
 | `struct`  | `-post` | Print structure summary and estimate Warren-Cowley SRO from QE input/output |
 | `parse`   | `-post` | Parse QE `pw.x` output summary (energy, Fermi, force, pressure, timing) |
+| `phonon`  | `-pre`  | Generate all DFPT phonon inputs (`ph.x`, `q2r.x`, `matdyn.x`) from an SCF input |
+| `phonon`  | `-post` | Post-process matdyn.x outputs → DOS plot, band plot, harmonic thermodynamics |
+| `phonon`  | `-dos`  | Plot phonon DOS (phonopy `total_dos.dat` or matdyn.x format) |
+| `phonon`  | `-band` | Plot phonon band structure (phonopy `band.yaml` or matdyn.x `.freq` format) |
+| `phonon`  | `-ha`   | Harmonic approximation thermodynamics: ZPE, F_vib(T), S(T), Cv(T) |
+| `qha`     | `-pre`  | Generate N volume-scaled SCF inputs for a quasi-harmonic approximation grid |
+| `qha`     | `-post` | Fit Birch-Murnaghan EOS and compute V(T), α(T), B_T(T), Cp(T), γ(T) |
 
 ### cif — SCF Input Generation
 - Parses CIF files (fractional coordinates, lattice parameters, symmetry)
@@ -104,6 +111,121 @@ VRH-averaged moduli (K, G, E, ν), Lamé constants, anisotropy indices, Vickers 
   - supports both QE input and QE output structures (`--source input|output|auto`)
   - writes `<prefix>.sro.txt`
 
+### phonon — DFPT Phonon Workflow
+
+A complete interface to Quantum ESPRESSO's DFPT machinery via `ph.x`, `q2r.x`, and `matdyn.x`.
+
+#### phonon -pre — Input Generation
+- Reads an existing pw.x SCF input and writes four ready-to-run QE input files:
+  - `ph.in` — `ph.x` phonon calculation (ldisp mode, q-mesh)
+  - `q2r.in` — `q2r.x` real-space interatomic force constant conversion
+  - `matdyn_dos.in` — `matdyn.x` phonon density of states (finer q-mesh)
+  - `matdyn_band.in` — `matdyn.x` phonon dispersion along high-symmetry path
+- Configurable q-mesh (`--nq`), DOS mesh (`--nq-dos`), convergence threshold, acoustic sum rule, and Born effective charges flag
+
+#### phonon -post — Unified Post-Processing
+Convenience wrapper that runs DOS, band-structure, and/or HA analysis in one call from matdyn.x outputs:
+```
+qepp phonon -post <prefix> [--dos] [--band] [--ha] [--natom N] [--labels G,X,...] [--tmax T]
+```
+If no flags are given, all three analyses are performed.
+
+#### phonon -dos / -band — Individual Plots
+- **-dos**: Parses matdyn.x or phonopy `total_dos.dat`; plots total and (optionally) projected DOS with configurable atom labels
+- **-band**: Parses matdyn.x `.freq` or phonopy `band.yaml`; draws dispersion with labelled high-symmetry points
+
+#### phonon -ha — Harmonic Approximation Thermodynamics
+Integrates the phonon DOS to yield:
+$$F_{\rm vib}(T) = k_BT\int_0^\infty g(\nu)\ln\!\left(2\sinh\tfrac{h\nu}{2k_BT}\right)d\nu$$
+$$C_V(T) = k_B\int_0^\infty g(\nu)\left(\frac{h\nu}{k_BT}\right)^2\!\frac{e^{h\nu/k_BT}}{(e^{h\nu/k_BT}-1)^2}\,d\nu$$
+- Reports ZPE, F_vib(T), S(T), Cv(T), E_vib(T) per atom
+- Both matdyn.x (cm⁻¹) and phonopy (THz) formats are auto-detected
+
+---
+
+### qha — Quasi-Harmonic Approximation
+
+Computational workflow to obtain finite-temperature thermodynamic properties by
+combining electronic energies with phonon free energies across a volume grid.
+
+#### qha -pre — Volume Grid Generation
+- Reads a pw.x SCF input and generates N symmetrically scaled copies
+  spanning ±range% of the equilibrium volume
+- Writes `<outDir>/v01/ … <outDir>/vNN/` each with a ready-to-run SCF input
+- Writes a `qha_summary.in` template to be filled in after running SCF + DFPT at each volume
+
+#### qha -post — Thermal Property Calculation
+Reads `qha_summary.in` (columns: volume Å³, energy Ry, path to matdyn DOS), then:
+1. Computes HA vibrational free energy at each volume over the full T range
+2. Fits a Birch-Murnaghan 3rd-order EOS to E_static(V) and to G(V,T) at each T
+3. Derives thermal properties from the free-energy minimum:
+   - V(T), V/atom(T)
+   - Isothermal bulk modulus $B_T(T)$
+   - Volumetric thermal expansion $\alpha(T) = \frac{1}{V}\frac{dV}{dT}$
+   - Isochoric and isobaric heat capacities $C_V$, $C_P$
+   - Vibrational entropy S(T)
+   - Macroscopic Grüneisen parameter $\gamma = V\alpha B_T/C_V$
+
+---
+
+### phonon — DFPT Phonon Workflow
+
+A complete interface to Quantum ESPRESSO's DFPT machinery via `ph.x`, `q2r.x`, and `matdyn.x`.
+
+#### phonon -pre — Input Generation
+- Reads an existing pw.x SCF input and writes four ready-to-run QE input files:
+  - `ph.in` — `ph.x` phonon calculation (ldisp mode, q-mesh)
+  - `q2r.in` — `q2r.x` real-space interatomic force constant conversion
+  - `matdyn_dos.in` — `matdyn.x` phonon density of states (finer q-mesh)
+  - `matdyn_band.in` — `matdyn.x` phonon dispersion along high-symmetry path
+- Configurable q-mesh (`--nq`), DOS mesh (`--nq-dos`), convergence threshold, acoustic sum rule, and Born effective charges flag (`--epsil`)
+
+#### phonon -post — Unified Post-Processing
+Convenience wrapper that runs DOS, band-structure, and/or HA analysis from matdyn.x outputs:
+- Reads `<prefix>.phonon.dos` and/or `<prefix>.phonon_band.freq`
+- If no `--dos/--band/--ha` flag is given, all three analyses are performed
+
+#### phonon -dos / -band — Individual Plots
+- **-dos**: Parses matdyn.x or phonopy `total_dos.dat`; plots total DOS (and optionally projected DOS with configurable atom labels)
+- **-band**: Parses matdyn.x `.freq` or phonopy `band.yaml`; draws dispersion with labelled high-symmetry points (`G` renders as Γ)
+
+#### phonon -ha — Harmonic Approximation Thermodynamics
+Integrates the phonon DOS to yield vibrational free energy, entropy, and heat capacity:
+
+$$C_V(T) = k_B\int_0^\infty g(\nu)\!\left(\frac{h\nu}{k_BT}\right)^{\!2}\frac{e^{h\nu/k_BT}}{(e^{h\nu/k_BT}-1)^2}\,d\nu$$
+
+- Reports ZPE, F_vib(T), S(T), Cv(T), E_vib(T) per atom and per unit cell
+- Both matdyn.x (cm⁻¹, auto-detected) and phonopy (THz) formats are supported
+
+---
+
+### qha — Quasi-Harmonic Approximation
+
+Computes finite-temperature thermodynamic properties by combining static DFT energies
+with phonon free energies across a volume grid.
+
+#### qha -pre — Volume Grid Generation
+- Reads a pw.x SCF input and generates N symmetrically scaled copies spanning ±range% of the equilibrium volume
+- Writes `<outDir>/v01/ … <outDir>/vNN/` each with a ready-to-run SCF input
+- Writes a `qha_summary.in` template (volume, energy placeholder, DOS path) to be completed after running SCF + DFPT at each volume
+
+#### qha -post — Thermal Property Calculation
+Reads `qha_summary.in` (columns: volume Å³, energy Ry, path to matdyn DOS), then:
+1. Computes HA vibrational free energy at each volume over the full T range
+2. Fits a 3rd-order Birch-Murnaghan EOS to E_static(V) and to G(V,T) at each T
+3. Derives thermal properties from the free-energy minimum at each T:
+
+| Output | Symbol |
+|--------|--------|
+| Equilibrium volume | V(T) |
+| Isothermal bulk modulus | $B_T(T)$ |
+| Volumetric thermal expansion | $\alpha(T) = \frac{1}{V}\frac{dV}{dT}$ |
+| Isochoric / isobaric heat capacity | $C_V$, $C_P = C_V + TV\alpha^2 B_T$ |
+| Vibrational entropy | S(T) |
+| Macroscopic Grüneisen parameter | $\gamma = V\alpha B_T / C_V$ |
+
+---
+
 ### parse — QE Output Summary Parser
 - Parses a QE `pw.x` output file and extracts:
   - Total energy (Ry/eV)
@@ -142,6 +264,13 @@ qepp conv    -pre  <scf.in> <ecutwfc|kspacing> <min> <max> <step> [outdir]
 qepp conv    -post <outdir> <ecutwfc|kspacing> [prefix]
 qepp struct  -post <structure_file> [prefix] [--sro] [--nshells N] [--tol T] [--source input|output|auto]
 qepp parse   -post <qe.out> [prefix]
+qepp phonon  -pre  <scf.in> [outdir] [--nq NQ1 NQ2 NQ3] [--nq-dos NQ1 NQ2 NQ3] [--epsil]
+qepp phonon  -post <prefix> [outprefix] [--dos] [--band] [--ha] [--natom N] [--labels L,...] [--tmin T] [--tmax T] [--dt T]
+qepp phonon  -dos  <dos_file> [prefix] [--pdos projected_dos.dat] [--labels L,...]
+qepp phonon  -band <freq_or_yaml> [prefix] [--labels G,X,W,L,G]
+qepp phonon  -ha   <dos_file> [prefix] [--natom N] [--tmin T] [--tmax T] [--dt T]
+qepp qha     -pre  <scf.in> [--nvolumes N] [--range R] [--outdir D]
+qepp qha     -post <qha_summary.in> [output_prefix] [--tmin T] [--tmax T] [--dt T]
 ```
 
 ### Examples
@@ -264,6 +393,43 @@ qepp parse -post si_scf.out si_summary
 # → si_summary.parse.txt
 ```
 
+**Run the full DFPT phonon workflow for Si:**
+```bash
+# 1. Generate all DFPT inputs from SCF input
+qepp phonon -pre si_scf.in phonon_inputs/ --nq 4 4 4 --nq-dos 16 16 16
+
+# 2. Run QE calculations
+cd phonon_inputs/
+mpirun -np 4 pw.x  -input si_scf.in > si_scf.out
+mpirun -np 4 ph.x  -input ph.in     > ph.out
+q2r.x               < q2r.in          > q2r.out
+matdyn.x            < matdyn_dos.in   > matdyn_dos.out
+matdyn.x            < matdyn_band.in  > matdyn_band.out
+
+# 3. Post-process all at once
+qepp phonon -post si --natom 2 --labels G,X,W,L,G --tmax 1500
+# → si.phonon_dos.png   si.phonon_band.png   si.phonon_ha.txt   si.phonon_ha.png
+```
+
+**Compute QHA thermal properties (quasi-harmonic approximation):**
+```bash
+# 1. Generate 9-volume grid spanning ±6%
+qepp qha -pre si_scf.in --nvolumes 9 --range 12 --outdir si_qha
+# → si_qha/v01/ … si_qha/v09/  (scaled SCF inputs)
+#   si_qha/qha_summary.in       (template; fill in energies after SCF runs)
+
+# 2. Run SCF + DFPT at each volume (parallel, e.g. with a loop)
+for d in si_qha/v*/; do
+  cd "$d" && mpirun -np 4 pw.x -input si_scf.in > qe.out
+  # run ph.x → q2r.x → matdyn.x (writes si.phonon.dos)
+  cd -
+done
+
+# 3. Fill energies in qha_summary.in, then post-process
+qepp qha -post si_qha/qha_summary.in si_qha_results --tmin 0 --tmax 1500 --dt 10
+# → si_qha_results.qha.txt  (V(T), α(T), B_T(T), Cv(T), Cp(T), S(T), γ(T))
+```
+
 ---
 
 ## Output Files
@@ -287,6 +453,13 @@ qepp parse -post si_scf.out si_summary
 | `.struct.txt` | Structure summary from QE SCF input |
 | `.sro.txt` | Warren-Cowley SRO table by neighbor shell and element pair |
 | `.parse.txt` | Parsed QE output summary |
+| `.phonon_dos.dat` | Two-column (freq THz, DOS) phonon density of states data |
+| `.phonon_dos.png` | Phonon DOS plot |
+| `.phonon_band.dat` | Phonon band structure data (k-distance, freq THz per band) |
+| `.phonon_band.png` | Phonon dispersion plot with high-symmetry labels |
+| `.phonon_ha.txt` | HA thermodynamics table: T, F_vib, S, Cv, E_vib (per atom) |
+| `.phonon_ha.png` | Three-panel plot: Cv(T), S(T), F_vib(T) |
+| `.qha.txt` | QHA thermal properties: T, V, α, B_T, Cv, Cp, S, γ |
 
 ---
 

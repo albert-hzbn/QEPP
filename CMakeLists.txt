@@ -51,6 +51,15 @@ add_executable(
 	src/io/cli/conv.cpp
 	src/io/cli/struct.cpp
 	src/io/cli/parse.cpp
+	src/algorithm/qha.cpp
+	src/io/qha.cpp
+	src/io/cli/qha.cpp
+	src/algorithm/harmonic.cpp
+	src/algorithm/dfpt.cpp
+	src/io/dfpt.cpp
+	src/io/phonon.cpp
+	src/plot/phonon.cpp
+	src/io/cli/phonon.cpp
 )
 target_include_directories(qepp PRIVATE include)
 target_link_libraries(qepp PRIVATE Matplot++::matplot Eigen3::Eigen)

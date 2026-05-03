@@ -1,0 +1,79 @@
+#include "qe/cli/commands.hpp"
+
+#include <stdexcept>
+#include <string>
+
+#include "qe/help.hpp"
+#include "qe/qha.hpp"
+#include "qe/utils.hpp"
+
+namespace qe {
+
+// ── qepp qha -pre <scf.in> [--nvolumes N] [--range R] [--outdir D] ──────────
+int handle_qha_pre_mode(int argc, char** argv, int s) {
+    if (argc < 3 + s) {
+        print_help_command(argv[0], "qha", "-pre");
+        return 1;
+    }
+
+    const std::string inputPath = argv[2 + s];
+    int    nVolumes    = 7;
+    double rangePercent = 10.0;
+    std::string outDir;
+
+    for (int i = 3 + s; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "--nvolumes" || arg == "--nv") {
+            if (i + 1 >= argc)
+                throw std::runtime_error("--nvolumes requires an integer value.");
+            nVolumes = std::stoi(argv[++i]);
+            continue;
+        }
+        if (arg == "--range" || arg == "--range-percent") {
+            if (i + 1 >= argc)
+                throw std::runtime_error("--range requires a numeric value (percent).");
+            rangePercent = std::stod(argv[++i]);
+            continue;
+        }
+        if (arg == "--outdir") {
+            if (i + 1 >= argc)
+                throw std::runtime_error("--outdir requires a directory path.");
+            outDir = argv[++i];
+            continue;
+        }
+        throw std::runtime_error("Unknown argument for 'qha -pre': " + arg);
+    }
+
+    qha_generate_volumes(inputPath, nVolumes, rangePercent, outDir);
+    return 0;
+}
+
+// ── qepp qha -post <qha_summary.in> [output_prefix] ─────────────────────────
+int handle_qha_post_mode(int argc, char** argv, int s) {
+    if (argc < 3 + s) {
+        print_help_command(argv[0], "qha", "-post");
+        return 1;
+    }
+
+    const std::string summaryPath = argv[2 + s];
+    std::string outPrefix = stem_from_path(summaryPath);
+    // Remove .in extension if present
+    if (outPrefix.size() > 3 &&
+        to_lower(outPrefix.substr(outPrefix.size() - 3)) == ".in")
+        outPrefix = outPrefix.substr(0, outPrefix.size() - 3);
+
+    if (argc > 3 + s) {
+        const std::string next = argv[3 + s];
+        if (next.rfind("--", 0) != 0)
+            outPrefix = next;
+        else
+            throw std::runtime_error("Unknown argument for 'qha -post': " + next);
+    }
+
+    const auto points = read_qha_summary(summaryPath);
+    const auto result = compute_qha(points);
+    write_qha_report(result, outPrefix);
+    return 0;
+}
+
+}  // namespace qe
