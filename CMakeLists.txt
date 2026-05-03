@@ -5,7 +5,28 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Matplot++ REQUIRED)
+# Build Matplot++ from the bundled source as a static library so the binary
+# has no dependency on the system's shared libmatplot / MKL / FFTW.
+# Force ZLIB/PNG to use static archives.
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "")
+set(MATPLOTPP_BUILD_EXAMPLES OFF CACHE BOOL "")
+set(MATPLOTPP_BUILD_TESTS OFF CACHE BOOL "")
+# Point CMake directly at the static archives so FindZLIB/FindPNG don't pick
+# up the .so symlinks that would break a -static link.
+set(ZLIB_LIBRARY        /usr/lib/x86_64-linux-gnu/libz.a   CACHE FILEPATH "")
+set(PNG_LIBRARY         /usr/lib/x86_64-linux-gnu/libpng.a CACHE FILEPATH "")
+set(PNG_LIBRARY_RELEASE /usr/lib/x86_64-linux-gnu/libpng.a CACHE FILEPATH "")
+add_subdirectory(third_party/matplotplusplus EXCLUDE_FROM_ALL)
+
+# Strip any remaining shared-library paths (.so) from the cimg INTERFACE target
+# — these come from the FFTW/MKL auto-detection inside Matplot++'s 3rd_party and
+# would prevent a fully static link.
+get_target_property(_cimg_iface cimg INTERFACE_LINK_LIBRARIES)
+if(_cimg_iface)
+    list(FILTER _cimg_iface EXCLUDE REGEX "\\.so")
+    set_target_properties(cimg PROPERTIES INTERFACE_LINK_LIBRARIES "${_cimg_iface}")
+endif()
+
 find_package(Eigen3 REQUIRED)
 
 # Optional: spglib for space-group detection
@@ -96,9 +117,9 @@ add_executable(
 target_include_directories(qepp PRIVATE include)
 target_link_libraries(qepp PRIVATE Matplot++::matplot Eigen3::Eigen)
 
-# Statically link the C++ and GCC runtime so the binary does not require a
-# matching libstdc++.so / libgcc_s.so on the target machine.
-target_link_options(qepp PRIVATE -static-libstdc++ -static-libgcc)
+# Fully static binary: bakes in glibc, libstdc++, libgcc_s, libm, libz, libpng.
+# The resulting binary runs on any x86-64 Linux regardless of glibc version.
+target_link_options(qepp PRIVATE -static -static-libstdc++ -static-libgcc)
 
 if(QEPP_USE_SPGLIB AND SPGLIB_TARGET)
     target_compile_definitions(qepp PRIVATE HAVE_SPGLIB)
