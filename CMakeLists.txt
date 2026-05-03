@@ -31,6 +31,7 @@ add_executable(
 	src/io/qe_input.cpp
 	src/plot/dos.cpp
 	src/io/band.cpp
+	src/io/elastic.cpp
 	src/algorithm/band.cpp
 	src/plot/band.cpp
 	src/algorithm/elastic.cpp
