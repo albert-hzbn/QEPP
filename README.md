@@ -32,8 +32,10 @@ All plots are rendered as high-resolution PNG files via [Matplot++](https://alan
 | `phonon`  | `-dos`  | Plot phonon DOS (phonopy `total_dos.dat` or matdyn.x format) |
 | `phonon`  | `-band` | Plot phonon band structure (phonopy `band.yaml` or matdyn.x `.freq` format) |
 | `phonon`  | `-ha`   | Harmonic approximation thermodynamics: ZPE, F_vib(T), S(T), Cv(T) |
-| `qha`     | `-pre`  | Generate N volume-scaled SCF inputs for a quasi-harmonic approximation grid |
-| `qha`     | `-post` | Fit Birch-Murnaghan EOS and compute V(T), α(T), B_T(T), Cp(T), γ(T) |
+| `qha`         | `-pre`  | Generate N volume-scaled SCF inputs for a quasi-harmonic approximation grid |
+| `qha`         | `-post` | Fit Birch-Murnaghan EOS and compute V(T), α(T), B_T(T), Cp(T), γ(T) |
+| `qha_elastic` | `-pre`  | Generate volume-grid SCF + elastic strain + DFPT inputs for T-dependent elastic constants |
+| `qha_elastic` | `-post` | Compute C_ij(T) from quasi-static + phonon bulk-modulus contributions; VRH averages |
 
 ### cif — SCF Input Generation
 - Parses CIF files (fractional coordinates, lattice parameters, symmetry)
@@ -226,6 +228,41 @@ Reads `qha_summary.in` (columns: volume Å³, energy Ry, path to matdyn DOS), th
 
 ---
 
+### qha_elastic — Temperature-Dependent Elastic Constants
+
+Extends the QHA approach to elastic properties by combining the energy-strain method
+with vibrational free energies across a volume grid.  Two physical contributions are included:
+
+1. **Quasi-static** (dominant): $C_{ij}^{QS}(T)$ — the static elastic tensor cubic-polynomial-interpolated to the QHA equilibrium volume $V(T)$.
+2. **Phonon bulk-modulus correction**: $B^{\rm ph}(T) = V(T)\cdot\partial^2 F_{\rm vib}/\partial V^2\big|_{V(T),T}$ — obtained by fitting a cubic polynomial to the phonon free energy over the volume grid and evaluating the second derivative at $V(T)$.  Added to all normal–normal Voigt components ($i,j \in \{0,1,2\}$).
+
+The total tensor $C_{ij}(T) = C_{ij}^{QS}(T) + \Delta C_{ij}^{\rm ph}(T)$ is then used to compute
+VRH-averaged bulk modulus $K_H$, shear modulus $G_H$, Young's modulus $E_H$, and Poisson's ratio $\nu_H$.
+
+#### qha_elastic -pre — Input Generation
+- Reads a pw.x SCF input, creates N volume-scaled directories (`v01/ … vNN/`).
+- In each volume directory:
+  - Writes an isotropically scaled pw.x SCF input.
+  - Calls the same strain-pattern engine as `elastic -pre` to write deformed inputs in `elastic/`.
+  - Writes DFPT phonon inputs in `dfpt/` (identical to `phonon -pre`).
+- Writes `qha_elastic_summary.in` with columns: `volume(Å³)  energy(Ry)  scf_template  elastic_dir  phonon_dos_path`.
+
+Options: `--nvolumes` (default 7), `--range` (percent, default 10), `--outdir`,
+`--ndeltas` (strain points per pattern, default 5), `--maxdelta` (max strain, default 0.03).
+
+#### qha_elastic -post — C_ij(T) Calculation
+Reads `qha_elastic_summary.in`, then:
+1. Calls `elastic -post` logic for each volume → $C_{ij}^{static}(V_n)$.
+2. Calls `phonon -ha` DOS integration for each volume at each T → $F_{\rm vib}(V_n,T)$.
+3. Fits cubic polynomials in $V$ to each of the 36 $C_{ij}$ elements and to $F_{\rm vib}$.
+4. Runs the full QHA minimisation → $V(T)$, $\alpha(T)$, $B_T^{QS}(T)$.
+5. Evaluates $C_{ij}^{QS}(V(T))$ and $B^{\rm ph}(T) = V(T)\cdot d^2F_{\rm vib}/dV^2$ at $V(T)$.
+6. Adds the phonon correction to normal–normal Voigt entries and computes VRH averages.
+
+Outputs a full column-data report and a concise summary table to stdout.
+
+---
+
 ### parse — QE Output Summary Parser
 - Parses a QE `pw.x` output file and extracts:
   - Total energy (Ry/eV)
@@ -271,6 +308,8 @@ qepp phonon  -band <freq_or_yaml> [prefix] [--labels G,X,W,L,G]
 qepp phonon  -ha   <dos_file> [prefix] [--natom N] [--tmin T] [--tmax T] [--dt T]
 qepp qha     -pre  <scf.in> [--nvolumes N] [--range R] [--outdir D]
 qepp qha     -post <qha_summary.in> [output_prefix] [--tmin T] [--tmax T] [--dt T]
+qepp qha_elastic -pre  <scf.in> [--nvolumes N] [--range R] [--outdir D] [--ndeltas N] [--maxdelta D]
+qepp qha_elastic -post <qha_elastic_summary.in> [output_prefix] [--tmin T] [--tmax T] [--dt T]
 ```
 
 ### Examples
@@ -444,6 +483,39 @@ qepp qha -post si_qha/qha_summary.in si_qha_results --tmin 0 --tmax 1500 --dt 10
 # → si_qha_results.qha.txt  (V(T), α(T), B_T(T), Cv(T), Cp(T), S(T), γ(T))
 ```
 
+**Compute temperature-dependent elastic constants (QHA elastic):**
+```bash
+# 1. Generate volume grid with elastic strain + DFPT inputs
+qepp qha_elastic -pre si_scf.in --nvolumes 7 --range 10 --outdir si_qha_el
+# → si_qha_el/v01/ … si_qha_el/v07/  (each: si.in, elastic/, dfpt/)
+#   si_qha_el/qha_elastic_summary.in  (fill energies after SCF runs)
+
+# 2. Run QE in each volume directory
+for d in si_qha_el/v*/; do
+  cd "$d"
+  mpirun -np 4 pw.x -input si_scf.in > qe.out          # volume SCF
+  for s in elastic/*/*/; do
+    pw.x < "${s}/si.in" > "${s}/si.out"                # strain SCF
+  done
+  mpirun -np 4 ph.x  -input dfpt/ph.in         > dfpt/ph.out
+  q2r.x              < dfpt/q2r.in              > dfpt/q2r.out
+  matdyn.x           < dfpt/matdyn_dos.in       > dfpt/matdyn_dos.out
+  cd -
+done
+
+# 2.5 Fill DFT total energies into the summary file
+for d in si_qha_el/v*/; do
+  e=$(grep "!.*total energy" "$d/qe.out" | tail -1 | awk '{print $5}')
+  sed -i "0,/TODO_fill_energy/s/TODO_fill_energy/${e}/" si_qha_el/qha_elastic_summary.in
+done
+
+# 3. Post-process → C_ij(T) report
+qepp qha_elastic -post si_qha_el/qha_elastic_summary.in si_qha_el_results --tmin 0 --tmax 1200 --dt 10
+# → si_qha_el_results.qha_elastic.txt
+#   Columns: T(K), V(Å³), α(1/K), C11…C66(GPa) [21 upper-triangle],
+#            KH, GH, EH, νH (GPa/GPa/GPa/–), B_QS(GPa), B_ph(GPa)
+```
+
 ---
 
 ## Output Files
@@ -474,6 +546,7 @@ qepp qha -post si_qha/qha_summary.in si_qha_results --tmin 0 --tmax 1500 --dt 10
 | `.phonon_ha.txt` | HA thermodynamics table: T, F_vib, S, Cv, E_vib (per atom) |
 | `.phonon_ha.png` | Three-panel plot: Cv(T), S(T), F_vib(T) |
 | `.qha.txt` | QHA thermal properties: T, V, α, B_T, Cv, Cp, S, γ |
+| `.qha_elastic.txt` | T-dependent elastic constants: T, V, α, C11–C66 (21 upper-triangle), KH, GH, EH, νH, B_QS, B_ph |
 
 ---
 
