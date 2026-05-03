@@ -24,6 +24,7 @@ add_executable(
 	src/io/cli/kpath.cpp
 	src/io/help.cpp
 	src/algorithm/dos.cpp
+	src/algorithm/struct.cpp
 	src/io/dos.cpp
 	src/io/charge.cpp
 	src/algorithm/utils.cpp
