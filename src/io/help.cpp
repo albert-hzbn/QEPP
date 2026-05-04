@@ -274,9 +274,12 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  Run the 0 K elastic workflow created by 'elastic -pre'. This first runs\n"
                 "  the equilibrium SCF template as qe.out, then runs every strained pw.x job\n"
                 "  under <outdir>. Existing outputs containing JOB DONE are skipped.\n"
+                "  If you pass only one directory, qepp auto-detects folder names and\n"
+                "  tries to locate the matching template input automatically.\n"
                 "\n"
                 "USAGE\n"
                 "  " << prog << " elastic -run <scf_template.in> <outdir>\n"
+                "  " << prog << " elastic -run <outdir_or_volume_dir>\n"
                 "                     [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N]\n"
                 "\n"
                 "OPTIONS\n"
@@ -289,7 +292,7 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "\n"
                 "EXAMPLES\n"
                 "  " << prog << " elastic -run si.scf.in elastic_si --np 16 --nk 4\n"
-                "  " << prog << " elastic -run si.scf.in elastic_si --np 32 --nk 4 --nb 2 --nd 4\n";
+                "  " << prog << " elastic -run tests/al_qha_el_litfix_new/v01 --np 16 --nk 4\n";
         } else if (sub == "-post") {
             std::cout <<
                 "DESCRIPTION\n"
@@ -303,6 +306,7 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "\n"
                 "USAGE\n"
                 "  " << prog << " elastic -post <scf_template.in> <outdir>\n"
+                "  " << prog << " elastic -post <outdir_or_volume_dir>\n"
                 "\n"
                 "ARGUMENTS\n"
                 "  scf_template.in  Same template used with 'elastic -pre' (provides cell)\n"
@@ -314,13 +318,16 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  Saves a report to outdir/elastic_results.txt\n"
                 "\n"
                 "EXAMPLES\n"
-                "  " << prog << " elastic -post si.scf.in elastic_si\n";
+                "  " << prog << " elastic -post si.scf.in elastic_si\n"
+                "  " << prog << " elastic -post tests/al_qha_el_litfix_new/v01\n";
         } else {
             std::cout <<
                 "USAGE\n"
                 "  " << prog << " elastic -pre  <scf_template.in> <outdir> [ndeltas] [max_delta]\n"
                 "  " << prog << " elastic -run  <scf_template.in> <outdir> [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N]\n"
+                "  " << prog << " elastic -run  <outdir_or_volume_dir> [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N]\n"
                 "  " << prog << " elastic -post <scf_template.in> <outdir>\n"
+                "  " << prog << " elastic -post <outdir_or_volume_dir>\n"
                 "\n"
                 "WORKFLOW\n"
                 "  1. " << prog << " elastic -pre  si.scf.in elastic_si\n"
@@ -839,9 +846,11 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "    2. all elastic strain SCFs\n"
                 "    3. ph.x, q2r.x, matdyn.x\n"
                 "  Existing stages containing JOB DONE are skipped automatically.\n"
+                "  If omitted, <dataset_dir> defaults to the current directory.\n"
                 "\n"
                 "USAGE\n"
                 "  " << prog << " qha_elastic -run <dataset_dir>\n"
+                "  " << prog << " qha_elastic -run\n"
                 "                     [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N]\n"
                 "                     [--exclude v04,v07]\n"
                 "\n"
@@ -856,7 +865,7 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "\n"
                 "EXAMPLES\n"
                 "  " << prog << " qha_elastic -run si_qha_el --np 20 --nk 4\n"
-                "  " << prog << " qha_elastic -run si_qha_el --np 20 --nk 4 --nb 2 --nd 5 --exclude v04\n";
+                "  " << prog << " qha_elastic -run --np 20 --nk 4 --nb 2 --nd 5 --exclude v04\n";
         }
         if (sub.empty() || sub == "-post") {
             std::cout <<
@@ -873,6 +882,7 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "\n"
                 "USAGE\n"
                 "  " << prog << " qha_elastic -post <qha_elastic_summary.in|dataset_dir>\n"
+                "  " << prog << " qha_elastic -post\n"
                 "                     [output_prefix]\n"
                 "                     [--tmin T] [--tmax T] [--dt T] [--exclude v04]\n"
                 "\n"
@@ -887,7 +897,7 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "\n"
                 "EXAMPLES\n"
                 "  " << prog << " qha_elastic -post si_qha_el\n"
-                "  " << prog << " qha_elastic -post si_qha_el --exclude v04 --tmin 0 --tmax 1000 --dt 50\n";
+                "  " << prog << " qha_elastic -post --exclude v04 --tmin 0 --tmax 1000 --dt 50\n";
         }
     }
     else {

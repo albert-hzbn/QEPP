@@ -1,5 +1,7 @@
 #include "qe/cli/commands.hpp"
 
+#include <cctype>
+#include <filesystem>
 #include <stdexcept>
 #include <set>
 #include <string>
@@ -12,6 +14,38 @@
 namespace qe {
 
 namespace {
+
+namespace fs = std::filesystem;
+
+bool is_run_option(const std::string& arg) {
+    return arg == "--np" || arg == "--ni" || arg == "--nk" ||
+           arg == "--nb" || arg == "--nt" || arg == "--nd" || arg == "--exclude";
+}
+
+std::string resolve_qha_dataset_dir(const std::string& input) {
+    fs::path p = input.empty() ? fs::path(".") : fs::path(input);
+    if (fs::is_regular_file(p) && p.filename() == "qha_elastic_summary.in")
+        return p.parent_path().empty() ? std::string(".") : p.parent_path().string();
+
+    if (fs::is_directory(p)) {
+        if (fs::exists(p / "qha_elastic_summary.in"))
+            return p.string();
+        const std::string name = p.filename().string();
+        if (name.size() >= 2 && name[0] == 'v' && std::isdigit(static_cast<unsigned char>(name[1]))) {
+            const fs::path parent = p.parent_path();
+            if (!parent.empty() && fs::exists(parent / "qha_elastic_summary.in"))
+                return parent.string();
+        }
+    }
+    return p.string();
+}
+
+std::string resolve_qha_summary_path(const std::string& input) {
+    fs::path p = input.empty() ? fs::path(".") : fs::path(input);
+    if (fs::is_directory(p))
+        return (p / "qha_elastic_summary.in").string();
+    return p.string();
+}
 
 QeParallelOptions parse_parallel_options(int argc, char** argv, int start, std::set<std::string>* excludeVolumes = nullptr) {
     QeParallelOptions opts;
@@ -104,28 +138,29 @@ int handle_qha_elastic_pre_mode(int argc, char** argv, int s) {
 
 // ── qepp qha_elastic -run <dataset_dir> [--np N] [--exclude v04,v07] ───────
 int handle_qha_elastic_run_mode(int argc, char** argv, int s) {
-    if (argc < 3 + s) {
-        print_help_command(argv[0], "qha_elastic", "-run");
-        return 1;
+    std::string datasetArg = ".";
+    int iStart = 2 + s;
+    if (iStart < argc && std::string(argv[iStart]).rfind("--", 0) != 0) {
+        if (is_run_option(argv[iStart]))
+            throw std::runtime_error("Invalid dataset directory argument: " + std::string(argv[iStart]));
+        datasetArg = argv[iStart++];
     }
 
-    const std::string datasetDir = argv[2 + s];
+    const std::string datasetDir = resolve_qha_dataset_dir(datasetArg);
     std::set<std::string> excludeVolumes;
-    const QeParallelOptions parallel = parse_parallel_options(argc, argv, 3 + s, &excludeVolumes);
+    const QeParallelOptions parallel = parse_parallel_options(argc, argv, iStart, &excludeVolumes);
     qha_elastic_run_dataset(datasetDir, parallel, excludeVolumes);
     return 0;
 }
 
 // ── qepp qha_elastic -post <summary.in|dataset_dir> [prefix] [--tmin T] [--tmax T] [--dt T] [--exclude v04] ──
 int handle_qha_elastic_post_mode(int argc, char** argv, int s) {
-    if (argc < 3 + s) {
-        print_help_command(argv[0], "qha_elastic", "-post");
-        return 1;
-    }
+    std::string summaryPath = ".";
+    int iStart = 2 + s;
+    if (iStart < argc && std::string(argv[iStart]).rfind("--", 0) != 0)
+        summaryPath = argv[iStart++];
 
-    std::string summaryPath = argv[2 + s];
-    if (is_directory(summaryPath))
-        summaryPath = join_paths(summaryPath, "qha_elastic_summary.in");
+    summaryPath = resolve_qha_summary_path(summaryPath);
     std::string outPrefix = summaryPath;
     if (outPrefix.size() > 3 &&
         to_lower(outPrefix.substr(outPrefix.size() - 3)) == ".in")
@@ -134,7 +169,6 @@ int handle_qha_elastic_post_mode(int argc, char** argv, int s) {
     double tMin = 0.0, tMax = 1500.0, dt = 10.0;
     std::set<std::string> excludeVolumes;
 
-    int iStart = 3 + s;
     if (iStart < argc && std::string(argv[iStart]).rfind("--", 0) != 0)
         outPrefix = argv[iStart++];
 

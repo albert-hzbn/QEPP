@@ -400,7 +400,9 @@ qepp band    -post <filband> [fermi_eV|qe.out] [prefix] [L,G,X,...]
 qepp kpath   -pre  <input.cif> [pts_per_segment] [output.kpath]
 qepp elastic -pre  <scf_template.in> <outdir> [ndeltas] [max_delta]
 qepp elastic -run  <scf_template.in> <outdir> [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N]
+qepp elastic -run  <outdir_or_volume_dir> [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N]
 qepp elastic -post <scf_template.in> <outdir>
+qepp elastic -post <outdir_or_volume_dir>
 qepp charge  -pre  <scf.in> [outdir]
 qepp charge  -post <cube_file> [prefix]
 qepp mag     -post <qe.out> [prefix]
@@ -420,7 +422,9 @@ qepp qha     -pre  <scf.in> [--nvolumes N] [--range R] [--outdir D]
 qepp qha     -post <qha_summary.in> [output_prefix] [--tmin T] [--tmax T] [--dt T]
 qepp qha_elastic -pre  <scf.in> [--nvolumes N] [--range R] [--outdir D] [--ndeltas N] [--maxdelta D]
 qepp qha_elastic -run  <dataset_dir> [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N] [--exclude v04,v07]
+qepp qha_elastic -run  [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N] [--exclude v04,v07]
 qepp qha_elastic -post <qha_elastic_summary.in|dataset_dir> [output_prefix] [--tmin T] [--tmax T] [--dt T] [--exclude v04]
+qepp qha_elastic -post [--tmin T] [--tmax T] [--dt T] [--exclude v04]
 ```
 
 ### Examples
@@ -496,9 +500,12 @@ qepp elastic -pre si_scf.in results/elastic 5 0.03
 
 # 2. Run the equilibrium and strained SCFs
 qepp elastic -run si_scf.in results/elastic --np 16 --nk 4
+# (or if folder names are obvious)
+qepp elastic -run results/elastic --np 16 --nk 4
 
 # 3. Post-process → full property report
 qepp elastic -post si_scf.in results/elastic
+qepp elastic -post results/elastic
 # → results/elastic/elastic_results.txt  (printed to stdout as well)
 ```
 
@@ -600,9 +607,13 @@ qepp qha_elastic -pre si_scf.in --nvolumes 7 --range 10 --outdir si_qha_el
 
 # 2. Run the full workflow with explicit QE parallelization tags
 qepp qha_elastic -run si_qha_el --np 20 --nk 4 --nd 5
+# (or from inside si_qha_el/, just run)
+qepp qha_elastic -run --np 20 --nk 4 --nd 5
 
 # 3. Post-process → C_ij(T) report
 qepp qha_elastic -post si_qha_el si_qha_el_results --tmin 0 --tmax 1200 --dt 10
+# (or from inside si_qha_el/, using the auto-detected summary)
+qepp qha_elastic -post --tmin 0 --tmax 1200 --dt 10
 # → si_qha_el_results.qha_elastic.txt
 #   Columns: T(K), V(Å³), α(1/K), C11…C66(GPa) [21 upper-triangle],
 #            KH, GH, EH, νH (GPa/GPa/GPa/–), B_QS(GPa), B_ph(GPa)
