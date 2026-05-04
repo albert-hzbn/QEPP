@@ -44,7 +44,7 @@ int handle_phonon_pre_mode(int argc, char** argv, int s) {
     }
 
     const std::string scfPath = argv[2 + s];
-    std::string outDir = ".";
+    std::string outDir;
     bool outDirSet = false;
     DfptOptions opts;
 
@@ -66,6 +66,10 @@ int handle_phonon_pre_mode(int argc, char** argv, int s) {
         } else if (arg == "--asr") {
             if (i + 1 >= argc) throw std::runtime_error("--asr requires a value.");
             opts.asr = argv[++i];
+        } else if (arg == "--outdir") {
+            if (i + 1 >= argc) throw std::runtime_error("--outdir requires a directory path.");
+            outDir = argv[++i];
+            outDirSet = true;
         } else if (!outDirSet && arg.rfind("--", 0) != 0) {
             outDir = arg;
             outDirSet = true;
@@ -74,6 +78,8 @@ int handle_phonon_pre_mode(int argc, char** argv, int s) {
         }
     }
 
+    if (outDir.empty())
+        outDir = stem_from_path(scfPath) + "_phonon";
     generate_phonon_inputs(scfPath, outDir, opts);
     return 0;
 }

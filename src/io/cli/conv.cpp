@@ -10,8 +10,8 @@
 namespace qe {
 
 int handle_conv_pre_mode(int argc, char** argv, int s) {
-    // conv -pre <scf.in> <ecutwfc|kspacing> <min> <max> <step> [outdir]
-    if (argc < 7 + s || argc > 8 + s) {
+    // conv -pre <scf.in> <ecutwfc|kspacing> <min> <max> <step> [outdir] [--outdir D]
+    if (argc < 7 + s) {
         print_help_command(argv[0], "conv", "-pre");
         return 1;
     }
@@ -25,7 +25,26 @@ int handle_conv_pre_mode(int argc, char** argv, int s) {
     } catch (...) {
         throw std::runtime_error("conv -pre: min/max/step must be numbers.");
     }
-    const std::string outDir = (argc == 8 + s) ? argv[7 + s] : "conv_" + paramType;
+    std::string outDir;
+
+    int iStart = 7 + s;
+    // Optional positional outdir (first non-flag arg)
+    if (iStart < argc && std::string(argv[iStart]).rfind("--", 0) != 0)
+        outDir = argv[iStart++];
+
+    for (int i = iStart; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "--outdir") {
+            if (i + 1 >= argc)
+                throw std::runtime_error("--outdir requires a directory path.");
+            outDir = argv[++i];
+        } else {
+            throw std::runtime_error("Unknown argument for 'conv -pre': " + arg);
+        }
+    }
+
+    if (outDir.empty())
+        outDir = "conv_" + paramType;
     write_conv_inputs(scfIn, paramType, vmin, vmax, vstep, outDir);
     return 0;
 }

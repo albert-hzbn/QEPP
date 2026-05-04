@@ -346,11 +346,12 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "    electron localisation function, ELF (plot_num=8)\n"
                 "\n"
                 "USAGE\n"
-                "  " << prog << " charge -pre <scf.in> [outdir]\n"
+                "  " << prog << " charge -pre <scf.in> [outdir] [--outdir D]\n"
                 "\n"
                 "ARGUMENTS\n"
                 "  scf.in    QE SCF input file (used to extract prefix and outdir)\n"
                 "  outdir    Directory where pp.x inputs are written (default: <stem>_charge/)\n"
+                "  --outdir D Same as positional outdir (flag form)\n"
                 "\n"
                 "OUTPUT\n"
                 "  <outdir>/<prefix>.charge.pp.in\n"
@@ -358,7 +359,8 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  <outdir>/<prefix>.elf.pp.in\n"
                 "\n"
                 "EXAMPLES\n"
-                "  " << prog << " charge -pre si.scf.in si_charge\n";
+                "  " << prog << " charge -pre si.scf.in si_charge\n"
+                "  " << prog << " charge -pre si.scf.in --outdir si_charge\n";
         } else if (sub == "-post") {
             std::cout <<
                 "DESCRIPTION\n"
@@ -382,7 +384,7 @@ void print_help_command(const char* prog, const std::string& cmd,
         } else {
             std::cout <<
                 "USAGE\n"
-                "  " << prog << " charge -pre  <scf.in> [outdir]\n"
+                "  " << prog << " charge -pre  <scf.in> [outdir] [--outdir D]\n"
                 "  " << prog << " charge -post <cube_file> [outprefix] [quantity]\n"
                 "\n"
                 "WORKFLOW\n"
@@ -422,16 +424,18 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  empty states [0, bias], negative bias probes filled states [bias, 0].\n"
                 "\n"
                 "USAGE\n"
-                "  " << prog << " stm -pre <scf.in> [bias_eV] [outdir]\n"
+                "  " << prog << " stm -pre <scf.in> [bias_eV] [outdir] [--outdir D]\n"
                 "\n"
                 "ARGUMENTS\n"
                 "  scf.in     QE SCF input (used to extract prefix and outdir)\n"
                 "  bias_eV    Bias voltage in eV (default: 1.0; positive = empty states)\n"
                 "  outdir     Output directory (default: <stem>_stm/)\n"
+                "  --outdir D  Same as positional outdir (flag form)\n"
                 "\n"
                 "EXAMPLES\n"
                 "  " << prog << " stm -pre si.scf.in\n"
-                "  " << prog << " stm -pre si.scf.in 0.5 si_stm\n";
+                "  " << prog << " stm -pre si.scf.in 0.5 si_stm\n"
+                "  " << prog << " stm -pre si.scf.in --outdir si_stm\n";
         } else if (sub == "-post") {
             std::cout <<
                 "DESCRIPTION\n"
@@ -454,7 +458,7 @@ void print_help_command(const char* prog, const std::string& cmd,
         } else {
             std::cout <<
                 "USAGE\n"
-                "  " << prog << " stm -pre  <scf.in> [bias_eV] [outdir]\n"
+                "  " << prog << " stm -pre  <scf.in> [bias_eV] [outdir] [--outdir D]\n"
                 "  " << prog << " stm -post <stm.cube> [output_prefix] [height_ang]\n"
                 "\n"
                 "WORKFLOW\n"
@@ -502,7 +506,7 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  to parse energies and plot the convergence curve.\n"
                 "\n"
                 "USAGE\n"
-                "  " << prog << " conv -pre <scf.in> <ecutwfc|kspacing> <min> <max> <step> [outdir]\n"
+                "  " << prog << " conv -pre <scf.in> <ecutwfc|kspacing> <min> <max> <step> [outdir] [--outdir D]\n"
                 "\n"
                 "ARGUMENTS\n"
                 "  scf.in     Template QE SCF input (ibrav=0, K_POINTS automatic required for kspacing)\n"
@@ -512,10 +516,12 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  max        Maximum parameter value (inclusive)\n"
                 "  step       Step size\n"
                 "  outdir     Output directory (default: conv_ecutwfc or conv_kspacing)\n"
+                "  --outdir D  Same as positional outdir (flag form)\n"
                 "\n"
                 "EXAMPLES\n"
                 "  " << prog << " conv -pre si.scf.in ecutwfc 20 80 10\n"
-                "  " << prog << " conv -pre si.scf.in kspacing 0.05 0.30 0.05 si_kconv\n";
+                "  " << prog << " conv -pre si.scf.in kspacing 0.05 0.30 0.05 si_kconv\n"
+                "  " << prog << " conv -pre si.scf.in ecutwfc 20 80 10 --outdir si_ecut\n";
         } else if (sub == "-post") {
             std::cout <<
                 "DESCRIPTION\n"
@@ -537,7 +543,7 @@ void print_help_command(const char* prog, const std::string& cmd,
         } else {
             std::cout <<
                 "USAGE\n"
-                "  " << prog << " conv -pre  <scf.in> <ecutwfc|kspacing> <min> <max> <step> [outdir]\n"
+                "  " << prog << " conv -pre  <scf.in> <ecutwfc|kspacing> <min> <max> <step> [outdir] [--outdir D]\n"
                 "  " << prog << " conv -post <outdir> <ecutwfc|kspacing> [output_prefix]\n"
                 "\n"
                 "WORKFLOW\n"
@@ -616,16 +622,18 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  'qha -post' to compute thermal properties.\n"
                 "\n"
                 "USAGE\n"
-                "  " << prog << " qha -pre <scf.in> [--nvolumes N] [--range R] [--outdir D]\n"
+                "  " << prog << " qha -pre <scf.in> [outdir] [--nvolumes N] [--range R] [--outdir D]\n"
                 "\n"
                 "ARGUMENTS\n"
                 "  scf.in        Equilibrium QE pw.x SCF input (must have CELL_PARAMETERS angstrom)\n"
                 "  --nvolumes N  Number of volume points (default: 7, minimum: 4)\n"
                 "  --range R     Symmetric volume range in percent (default: 10 -> +/-5%)\n"
                 "  --outdir D    Output directory (default: <stem>_qha)\n"
+                "              (also accepted as positional second argument)\n"
                 "\n"
                 "EXAMPLES\n"
                 "  " << prog << " qha -pre si.scf.in\n"
+                "  " << prog << " qha -pre si.scf.in si_qha --nvolumes 9 --range 12\n"
                 "  " << prog << " qha -pre si.scf.in --nvolumes 9 --range 12 --outdir si_qha\n";
         }
         if (sub.empty() || sub == "-post") {
@@ -677,7 +685,8 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  --nq-dos N N N    q-mesh for matdyn DOS (default: 8 8 8)\n"
                 "  --epsil           Include Born charges / dielectric constant (epsil=.true.)\n"
                 "  --asr TYPE        Acoustic sum rule type: no/simple/crystal (default: simple)\n"
-                "  outdir            Output directory (default: current directory)\n"
+                "  outdir            Output directory (default: <stem>_phonon)\n"
+                "  --outdir D         Same as positional outdir (flag form)\n"
                 "\n"
                 "WORKFLOW\n"
                 "  qepp phonon -pre  scf.in --nq 4 4 4 phonon_inputs/\n"
@@ -689,7 +698,8 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "\n"
                 "EXAMPLES\n"
                 "  " << prog << " phonon -pre si_scf.in\n"
-                "  " << prog << " phonon -pre si_scf.in --nq 6 6 6 --nq-dos 12 12 12 ph_inputs/\n";
+                "  " << prog << " phonon -pre si_scf.in --nq 6 6 6 --nq-dos 12 12 12 ph_inputs/\n"
+                "  " << prog << " phonon -pre si_scf.in --outdir ph_inputs/\n";
         }
         if (sub.empty() || sub == "-post") {
             std::cout <<
