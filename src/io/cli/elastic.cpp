@@ -8,6 +8,7 @@
 
 #include "qe/elastic.hpp"
 #include "qe/help.hpp"
+#include "qe/utils.hpp"
 
 namespace {
 
@@ -86,14 +87,54 @@ qe::QeParallelOptions parse_parallel_options(int argc, char** argv, int start) {
 namespace qe {
 
 int handle_elastic_pre_mode(int argc, char** argv, int s) {
-    if (argc < 4 + s) {
+    if (argc < 3 + s) {
         print_help_command(argv[0], "elastic", "-pre");
         return 1;
     }
+
     const std::string tmpl = argv[2 + s];
-    const std::string outDir = argv[3 + s];
-    const int nDeltas = (argc >= 5 + s) ? std::stoi(argv[4 + s]) : 7;
-    const double maxDelta = (argc >= 6 + s) ? std::stod(argv[5 + s]) : 0.04;
+    std::string outDir;
+    int nDeltas = 7;
+    double maxDelta = 0.04;
+
+    int i = 3 + s;
+    if (i < argc && std::string(argv[i]).rfind("--", 0) != 0) {
+        outDir = argv[i++];
+    }
+    if (i < argc && std::string(argv[i]).rfind("--", 0) != 0) {
+        nDeltas = std::stoi(argv[i++]);
+    }
+    if (i < argc && std::string(argv[i]).rfind("--", 0) != 0) {
+        maxDelta = std::stod(argv[i++]);
+    }
+
+    for (; i < argc; ++i) {
+        const std::string arg = argv[i];
+        auto nextInt = [&](const std::string& flag) -> int {
+            if (i + 1 >= argc)
+                throw std::runtime_error(flag + " requires an integer value.");
+            return std::stoi(argv[++i]);
+        };
+        auto nextDouble = [&](const std::string& flag) -> double {
+            if (i + 1 >= argc)
+                throw std::runtime_error(flag + " requires a numeric value.");
+            return std::stod(argv[++i]);
+        };
+        auto nextString = [&](const std::string& flag) -> std::string {
+            if (i + 1 >= argc)
+                throw std::runtime_error(flag + " requires a value.");
+            return argv[++i];
+        };
+
+        if      (arg == "--outdir")   outDir   = nextString(arg);
+        else if (arg == "--ndeltas")  nDeltas  = nextInt(arg);
+        else if (arg == "--maxdelta") maxDelta = nextDouble(arg);
+        else throw std::runtime_error("Unknown argument for 'elastic -pre': " + arg);
+    }
+
+    if (outDir.empty())
+        outDir = stem_from_path(tmpl) + "_elastic";
+
     generate_elastic_inputs(tmpl, outDir, nDeltas, maxDelta);
     return 0;
 }

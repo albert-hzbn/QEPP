@@ -101,7 +101,11 @@ int handle_qha_elastic_pre_mode(int argc, char** argv, int s) {
     double maxDelta = 0.04;
     DfptOptions dfptOpts;
 
-    for (int i = 3 + s; i < argc; ++i) {
+    int i = 3 + s;
+    if (i < argc && std::string(argv[i]).rfind("--", 0) != 0)
+        outDir = argv[i++];
+
+    for (; i < argc; ++i) {
         const std::string arg = argv[i];
         auto nextInt = [&](const std::string& flag) -> int {
             if (i + 1 >= argc)
@@ -113,10 +117,15 @@ int handle_qha_elastic_pre_mode(int argc, char** argv, int s) {
                 throw std::runtime_error(flag + " requires a numeric value.");
             return std::stod(argv[++i]);
         };
+        auto nextString = [&](const std::string& flag) -> std::string {
+            if (i + 1 >= argc)
+                throw std::runtime_error(flag + " requires a value.");
+            return argv[++i];
+        };
 
         if      (arg == "--nvolumes" || arg == "--nv") nVolumes     = nextInt(arg);
         else if (arg == "--range")                     rangePercent = nextDouble(arg);
-        else if (arg == "--outdir")                    outDir       = argv[++i];
+        else if (arg == "--outdir")                    outDir       = nextString(arg);
         else if (arg == "--ndeltas")                   nDeltas      = nextInt(arg);
         else if (arg == "--maxdelta")                  maxDelta     = nextDouble(arg);
         else if (arg == "--nq") {

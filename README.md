@@ -398,7 +398,7 @@ qepp dos     -post <qe.dos> [fermi_eV|qe.out] [prefix]
 qepp band    -pre  <input.cif> <scf.in> [bands_pw.in] [bands_pp.in] [pts_per_seg]
 qepp band    -post <filband> [fermi_eV|qe.out] [prefix] [L,G,X,...]
 qepp kpath   -pre  <input.cif> [pts_per_segment] [output.kpath]
-qepp elastic -pre  <scf_template.in> <outdir> [ndeltas] [max_delta]
+qepp elastic -pre  <scf_template.in> [outdir] [ndeltas] [max_delta] [--outdir D] [--ndeltas N] [--maxdelta D]
 qepp elastic -run  <scf_template.in> <outdir> [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N]
 qepp elastic -run  <outdir_or_volume_dir> [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N]
 qepp elastic -post <scf_template.in> <outdir>
@@ -420,7 +420,7 @@ qepp phonon  -band <freq_or_yaml> [prefix] [--labels G,X,W,L,G]
 qepp phonon  -ha   <dos_file> [prefix] [--natom N] [--tmin T] [--tmax T] [--dt T]
 qepp qha     -pre  <scf.in> [--nvolumes N] [--range R] [--outdir D]
 qepp qha     -post <qha_summary.in> [output_prefix] [--tmin T] [--tmax T] [--dt T]
-qepp qha_elastic -pre  <scf.in> [--nvolumes N] [--range R] [--outdir D] [--ndeltas N] [--maxdelta D]
+qepp qha_elastic -pre  <scf.in> [outdir] [--nvolumes N] [--range R] [--outdir D] [--ndeltas N] [--maxdelta D]
 qepp qha_elastic -run  <dataset_dir> [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N] [--exclude v04,v07]
 qepp qha_elastic -run  [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N] [--exclude v04,v07]
 qepp qha_elastic -post <qha_elastic_summary.in|dataset_dir> [output_prefix] [--tmin T] [--tmax T] [--dt T] [--exclude v04]
@@ -495,6 +495,8 @@ qepp kpath -pre silicon.cif 30 silicon.kpath
 ```bash
 # 1. Generate deformed inputs (5 strain points, ±3%)
 qepp elastic -pre si_scf.in results/elastic 5 0.03
+# (or rely on the default folder: si_scf_elastic)
+qepp elastic -pre si_scf.in
 # → results/elastic/e1/{p0030,p0015,p0000,m0015,m0030}/si.in
 #   results/elastic/e1e2/…  results/elastic/e4/…
 
@@ -602,6 +604,8 @@ qepp qha -post si_qha/qha_summary.in si_qha_results --tmin 0 --tmax 1500 --dt 10
 ```bash
 # 1. Generate volume grid with elastic strain + DFPT inputs
 qepp qha_elastic -pre si_scf.in --nvolumes 7 --range 10 --outdir si_qha_el
+# (equivalent positional outdir form)
+qepp qha_elastic -pre si_scf.in si_qha_el --nvolumes 7 --range 10
 # → si_qha_el/v01/ … si_qha_el/v07/  (each: si.in, elastic/, dfpt/)
 #   si_qha_el/qha_elastic_summary.in  (fill energies after SCF runs)
 
