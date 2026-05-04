@@ -259,6 +259,117 @@ Reads `qha_elastic_summary.in`, then:
 5. Evaluates $C_{ij}^{QS}(V(T))$ and $B^{\rm ph}(T) = V(T)\cdot d^2F_{\rm vib}/dV^2$ at $V(T)$.
 6. Adds the phonon correction to normal–normal Voigt entries and computes VRH averages.
 
+### Reproducing The Al qha_elastic litfix_new Run
+
+The commands below reproduce the aluminum `qha_elastic` workflow used in this repository session, including the 9-volume setup, the MPI run script, and the reduced post-processing path that drops the problematic `v04` phonon point.
+
+#### 1. Prepare An Equilibrium SCF Template
+
+Create a cubic Al SCF template, for example from the near-minimum volume used here:
+
+```bash
+cat > /tmp/al_eq_scf.in <<'EOF'
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'allit'
+  outdir      = './tmp'
+  pseudo_dir  = '/home/albert/Softwares/qe-7.5/pseudo'
+  tprnfor     = .false.
+  tstress     = .false.
+/
+&SYSTEM
+  ibrav       = 0,
+  nat         = 1,
+  ntyp        = 1,
+  ecutwfc     = 55.0
+  ecutrho     = 440.0
+  nosym       = .true.
+  noinv       = .true.
+  occupations = 'smearing'
+  smearing    = 'mp'
+  degauss     = 0.02
+/
+&ELECTRONS
+  conv_thr    = 1.0d-10
+  mixing_beta = 0.30
+/
+ATOMIC_SPECIES
+  Al 26.9815385 Al.pbe-nl-rrkjus_psl.1.0.0.UPF
+ATOMIC_POSITIONS crystal
+  Al 0.0 0.0 0.0
+K_POINTS automatic
+  12 12 12 0 0 0
+CELL_PARAMETERS angstrom
+        0.0000000000  2.0195947927  2.0195947927
+        2.0195947927  0.0000000000  2.0195947927
+        2.0195947927  2.0195947927  0.0000000000
+EOF
+```
+
+#### 2. Generate The 9-Volume Dataset
+
+```bash
+qepp qha_elastic -pre /tmp/al_eq_scf.in \
+  --nvolumes 9 \
+  --range 12 \
+  --ndeltas 7 \
+  --maxdelta 0.015 \
+  --outdir tests/al_qha_el_litfix_new
+```
+
+This creates `v01` through `v09`, each with one SCF input, `elastic/` strain inputs, `dfpt/` phonon inputs, and a `qha_elastic_summary.in` file.
+
+#### 3. Set The DFPT Mesh
+
+The workflow used a `2x2x2` DFPT mesh for the bulk run:
+
+```bash
+for v in tests/al_qha_el_litfix_new/v*/; do
+  sed -i 's/nq1 = [0-9]*/nq1 = 2/; s/nq2 = [0-9]*/nq2 = 2/; s/nq3 = [0-9]*/nq3 = 2/' "$v"dfpt/ph.in
+  grep -q 'search_sym' "$v"dfpt/ph.in || sed -i "/prefix/a\\   search_sym = .false.," "$v"dfpt/ph.in
+  mkdir -p "$v"tmp/_ph0
+done
+```
+
+#### 4. Run The Full Calculation
+
+Use the helper script in the repository root:
+
+```bash
+NP=20 ./run_litfix_new.sh tests/al_qha_el_litfix_new | tee litfix_new_run.log
+```
+
+What the script does:
+- runs the top-level SCF for each volume
+- runs all 21 elastic strain calculations in `elastic/*/*/`
+- runs `ph.x`, `q2r.x`, and `matdyn.x`
+- resumes cleanly by skipping stages that already contain `JOB DONE`
+
+#### 5. Drop v04 And Post-Process
+
+In this run, `v04` failed in `ph.x` with `FFT grid incompatible with symmetry`, while the other 8 volumes completed. The repository includes a helper to build a reduced summary file and run the post-processing step:
+
+```bash
+./post_litfix_new_drop_v04.sh tests/al_qha_el_litfix_new
+```
+
+This writes:
+- `tests/al_qha_el_litfix_new/qha_elastic_summary.drop_v04.in`
+- `tests/al_qha_el_litfix_new/qha_elastic_summary.drop_v04.qha_elastic.txt` if an explicit output prefix is supplied
+- by default, `qepp` also writes `qha_elastic_summary.qha_elastic.txt` in the dataset directory
+
+#### 6. Reduced-Set 300 K Result Vs Ab Initio Reference
+
+Using the 8 completed volumes (`v01`, `v02`, `v03`, `v05`, `v06`, `v07`, `v08`, `v09`), the reduced-set `qha_elastic` result at 300 K was:
+
+| Quantity | QEPP reduced set | Ab initio reference | Delta | Relative error |
+|---------|------------------|---------------------|-------|----------------|
+| C11 | 89.7791 GPa | 107.0 GPa | -17.2209 GPa | -16.09% |
+| C12 | 61.9274 GPa | 60.0 GPa | +1.9274 GPa | +3.21% |
+| C44 | 35.6840 GPa | 32.0 GPa | +3.6840 GPa | +11.51% |
+
+These values came from `tests/al_qha_el_litfix_new/qha_elastic_summary.qha_elastic.txt` after dropping `v04` from the summary input.
+
 Outputs a full column-data report and a concise summary table to stdout.
 
 ---
