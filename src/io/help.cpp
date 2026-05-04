@@ -4,7 +4,7 @@
 
 void print_help(const char* prog) {
     std::cout <<
-        "qepp — Quantum ESPRESSO post-processor and input generator\n"
+        "qepp — Quantum ESPRESSO Pre & Post Processing Tool\n"
         "\n"
         "USAGE\n"
         "  " << prog << " <command> -pre  [arguments]   (pre-processing)\n"
