@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <stdexcept>
@@ -102,6 +103,21 @@ std::string stem_from_path(const std::string& path) {
     return (dot == std::string::npos) ? file : file.substr(0, dot);
 }
 
+std::vector<std::string> split_csv(const std::string& text) {
+    std::vector<std::string> parts;
+    std::string current;
+    for (char c : text) {
+        if (c == ',') {
+            parts.push_back(current);
+            current.clear();
+        } else {
+            current.push_back(c);
+        }
+    }
+    parts.push_back(current);
+    return parts;
+}
+
 std::vector<std::string> load_lines(const std::string& path) {
     std::ifstream in(path);
     if (!in.is_open()) {
@@ -124,6 +140,18 @@ bool try_parse_double(const std::string& s, double& value) {
     } catch (...) {
         return false;
     }
+}
+
+bool is_directory(const std::string& path) {
+    try {
+        return std::filesystem::is_directory(std::filesystem::path(path));
+    } catch (...) {
+        return false;
+    }
+}
+
+std::string join_paths(const std::string& base, const std::string& leaf) {
+    return (std::filesystem::path(base) / leaf).string();
 }
 
 std::string extract_quoted_assignment(const std::vector<std::string>& lines,

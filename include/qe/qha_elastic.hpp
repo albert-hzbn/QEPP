@@ -26,9 +26,11 @@
 //   Mouhat & Coudert, Phys. Rev. B 90 (2014) 224104
 
 #include "qe/elastic.hpp"
+#include "qe/dfpt.hpp"
 #include "qe/qha.hpp"
 #include "qe/types.hpp"
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -104,7 +106,15 @@ void qha_elastic_generate_inputs(const std::string& qeInputPath,
                                   double rangePercent = 10.0,
                                   const std::string& outDir = "",
                                   int    nDeltas     = 7,
-                                  double maxDelta    = 0.04);
+                                  double maxDelta    = 0.04,
+                                  const DfptOptions& dfptOpts = {});
+
+// Run SCF, elastic strains, and DFPT phonons for all volumes in a generated
+// qha_elastic dataset directory. Completed stages are skipped automatically.
+// excludeVolumes contains volume directory names such as v04.
+void qha_elastic_run_dataset(const std::string& datasetDir,
+                             int mpiProcesses = 1,
+                             const std::set<std::string>& excludeVolumes = {});
 
 // ── Post-processing ────────────────────────────────────────────────────────────
 
@@ -116,7 +126,8 @@ void qha_elastic_generate_inputs(const std::string& qeInputPath,
 //
 // tempsIn : temperature grid (K); if empty defaults to 0…1500 K step 10 K.
 QhaElasticResult read_and_compute_qha_elastic(const std::string& summaryPath,
-                                               const std::vector<double>& tempsIn = {});
+                                               const std::vector<double>& tempsIn = {},
+                                               const std::set<std::string>& excludeVolumes = {});
 
 // Write the QHA elastic results report to stdout and <outPrefix>.qha_elastic.txt.
 void write_qha_elastic_report(const QhaElasticResult& result,

@@ -784,6 +784,8 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  " << prog << " qha_elastic -pre <scf.in>\n"
                 "                    [--nvolumes N]   [--range R]\n"
                 "                    [--ndeltas N]    [--maxdelta D]\n"
+                "                    [--nq N]         [--nq-dos N]\n"
+                "                    [--tr2ph X]\n"
                 "                    [--outdir D]\n"
                 "\n"
                 "OPTIONS\n"
@@ -791,17 +793,43 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  --range R       Total volume range in % (default: 10 → ±5% around V₀)\n"
                 "  --ndeltas N     Strain points per pattern, odd (default: 7)\n"
                 "  --maxdelta D    Max strain amplitude (default: 0.04)\n"
+                "  --nq N          Isotropic DFPT q-mesh for ph.x (default: 4)\n"
+                "  --nq-dos N      Isotropic DOS mesh for matdyn.x (default: 16)\n"
+                "  --tr2ph X       ph.x convergence threshold (default: 1e-14)\n"
                 "  --outdir D      Output root directory\n"
                 "\n"
                 "EXAMPLES\n"
                 "  " << prog << " qha_elastic -pre si_scf.in\n"
-                "  " << prog << " qha_elastic -pre si_scf.in --nvolumes 9 --range 12 --outdir si_qha_el\n";
+                "  " << prog << " qha_elastic -pre si_scf.in --nvolumes 9 --range 12 --nq 2 --outdir si_qha_el\n";
+        }
+        if (sub.empty() || sub == "-run") {
+            std::cout <<
+                "DESCRIPTION (-run)\n"
+                "  Run the generated QHA elastic workflow across all v*/ directories.\n"
+                "  For each volume it executes, if needed:\n"
+                "    1. top-level SCF (qe.out)\n"
+                "    2. all elastic strain SCFs\n"
+                "    3. ph.x, q2r.x, matdyn.x\n"
+                "  Existing stages containing JOB DONE are skipped automatically.\n"
+                "\n"
+                "USAGE\n"
+                "  " << prog << " qha_elastic -run <dataset_dir> [--np N] [--exclude v04,v07]\n"
+                "\n"
+                "OPTIONS\n"
+                "  --np N          MPI process count passed to pw.x/ph.x (default: 1)\n"
+                "  --exclude LIST  Comma-separated volume directories to skip\n"
+                "\n"
+                "EXAMPLES\n"
+                "  " << prog << " qha_elastic -run si_qha_el --np 20\n"
+                "  " << prog << " qha_elastic -run si_qha_el --np 20 --exclude v04\n";
         }
         if (sub.empty() || sub == "-post") {
             std::cout <<
                 "DESCRIPTION (-post)\n"
                 "  Read a qha_elastic_summary.in, run elastic post-processing for each volume,\n"
                 "  read phonon DOS files, and compute temperature-dependent C_ij(T) tensors.\n"
+                "  If the energy column is not numeric, qepp automatically reads the static\n"
+                "  energy from qe.out (or <scf_stem>.out) in the corresponding volume directory.\n"
                 "\n"
                 "  Two contributions are computed and summed:\n"
                 "    1. Quasi-static C_ij^{QS}(T): static elastic tensor interpolated to V(T)\n"
@@ -809,21 +837,22 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "       components; leaves shear constants unchanged.\n"
                 "\n"
                 "USAGE\n"
-                "  " << prog << " qha_elastic -post <qha_elastic_summary.in>\n"
+                "  " << prog << " qha_elastic -post <qha_elastic_summary.in|dataset_dir>\n"
                 "                     [output_prefix]\n"
-                "                     [--tmin T] [--tmax T] [--dt T]\n"
+                "                     [--tmin T] [--tmax T] [--dt T] [--exclude v04]\n"
                 "\n"
                 "OPTIONS\n"
                 "  --tmin T    Minimum temperature in K (default: 0)\n"
                 "  --tmax T    Maximum temperature in K (default: 1500)\n"
                 "  --dt T      Temperature step in K    (default: 10)\n"
+                "  --exclude   Comma-separated volume directories to ignore\n"
                 "\n"
                 "OUTPUTS\n"
                 "  <prefix>.qha_elastic.txt  Full C_ij(T) table + VRH moduli vs temperature\n"
                 "\n"
                 "EXAMPLES\n"
-                "  " << prog << " qha_elastic -post si_qha_el/qha_elastic_summary.in\n"
-                "  " << prog << " qha_elastic -post si_qha_el/qha_elastic_summary.in --tmin 0 --tmax 1000 --dt 50\n";
+                "  " << prog << " qha_elastic -post si_qha_el\n"
+                "  " << prog << " qha_elastic -post si_qha_el --exclude v04 --tmin 0 --tmax 1000 --dt 50\n";
         }
     }
     else {

@@ -261,7 +261,7 @@ Reads `qha_elastic_summary.in`, then:
 
 ### Reproducing The Al qha_elastic litfix_new Run
 
-The commands below reproduce the aluminum `qha_elastic` workflow used in this repository session, including the 9-volume setup, the MPI run script, and the reduced post-processing path that drops the problematic `v04` phonon point.
+The aluminum `qha_elastic` workflow can now be executed entirely through built-in `qepp qha_elastic` commands. No external shell helper is required.
 
 #### 1. Prepare An Equilibrium SCF Template
 
@@ -314,51 +314,37 @@ qepp qha_elastic -pre /tmp/al_eq_scf.in \
   --range 12 \
   --ndeltas 7 \
   --maxdelta 0.015 \
+  --nq 2 \
+  --nq-dos 16 \
   --outdir tests/al_qha_el_litfix_new
 ```
 
-This creates `v01` through `v09`, each with one SCF input, `elastic/` strain inputs, `dfpt/` phonon inputs, and a `qha_elastic_summary.in` file.
+This creates `v01` through `v09`, each with one SCF input, `elastic/` strain inputs, `dfpt/` phonon inputs, and a `qha_elastic_summary.in` file. The `--nq 2` flag writes a `2x2x2` DFPT mesh directly into every generated `ph.in` file, so no manual editing is needed.
 
-#### 3. Set The DFPT Mesh
-
-The workflow used a `2x2x2` DFPT mesh for the bulk run:
+#### 3. Run The Full Calculation
 
 ```bash
-for v in tests/al_qha_el_litfix_new/v*/; do
-  sed -i 's/nq1 = [0-9]*/nq1 = 2/; s/nq2 = [0-9]*/nq2 = 2/; s/nq3 = [0-9]*/nq3 = 2/' "$v"dfpt/ph.in
-  grep -q 'search_sym' "$v"dfpt/ph.in || sed -i "/prefix/a\\   search_sym = .false.," "$v"dfpt/ph.in
-  mkdir -p "$v"tmp/_ph0
-done
+qepp qha_elastic -run tests/al_qha_el_litfix_new --np 20
 ```
 
-#### 4. Run The Full Calculation
-
-Use the helper script in the repository root:
-
-```bash
-NP=20 ./run_litfix_new.sh tests/al_qha_el_litfix_new | tee litfix_new_run.log
-```
-
-What the script does:
-- runs the top-level SCF for each volume
+What `qha_elastic -run` does automatically:
+- runs the top-level SCF for each volume and writes `qe.out`
 - runs all 21 elastic strain calculations in `elastic/*/*/`
 - runs `ph.x`, `q2r.x`, and `matdyn.x`
+- creates `tmp/_ph0` before `ph.x`
 - resumes cleanly by skipping stages that already contain `JOB DONE`
 
-#### 5. Drop v04 And Post-Process
+#### 4. Drop v04 And Post-Process
 
-In this run, `v04` failed in `ph.x` with `FFT grid incompatible with symmetry`, while the other 8 volumes completed. The repository includes a helper to build a reduced summary file and run the post-processing step:
+In this run, `v04` failed in `ph.x` with `FFT grid incompatible with symmetry`, while the other 8 volumes completed. The built-in `-post` mode can exclude failed volumes directly and auto-read the static SCF energies from `qe.out`, so the summary file does not need manual editing:
 
 ```bash
-./post_litfix_new_drop_v04.sh tests/al_qha_el_litfix_new
+qepp qha_elastic -post tests/al_qha_el_litfix_new --exclude v04 --tmin 0 --tmax 1000 --dt 100
 ```
 
-This writes:
-- `tests/al_qha_el_litfix_new/qha_elastic_summary.drop_v04.in`
-- `tests/al_qha_el_litfix_new/qha_elastic_summary.drop_v04.qha_elastic.txt` if an explicit output prefix is supplied
-- by default, `qepp` also writes `qha_elastic_summary.qha_elastic.txt` in the dataset directory
+This writes `qha_elastic_summary.qha_elastic.txt` in the dataset directory.
 
-#### 6. Reduced-Set 300 K Result Vs Ab Initio Reference
+#### 5. Reduced-Set 300 K Result Vs Ab Initio Reference
 
 Using the 8 completed volumes (`v01`, `v02`, `v03`, `v05`, `v06`, `v07`, `v08`, `v09`), the reduced-set `qha_elastic` result at 300 K was:
 
@@ -368,7 +354,7 @@ Using the 8 completed volumes (`v01`, `v02`, `v03`, `v05`, `v06`, `v07`, `v08`, 
 | C12 | 61.9274 GPa | 60.0 GPa | +1.9274 GPa | +3.21% |
 | C44 | 35.6840 GPa | 32.0 GPa | +3.6840 GPa | +11.51% |
 
-These values came from `tests/al_qha_el_litfix_new/qha_elastic_summary.qha_elastic.txt` after dropping `v04` from the summary input.
+These values came from `tests/al_qha_el_litfix_new/qha_elastic_summary.qha_elastic.txt` after running `qepp qha_elastic -post tests/al_qha_el_litfix_new --exclude v04 ...`.
 
 Outputs a full column-data report and a concise summary table to stdout.
 

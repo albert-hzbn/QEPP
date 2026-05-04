@@ -12,6 +12,7 @@
 
 #include <Eigen/Dense>
 
+#include <cstdlib>
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
@@ -19,6 +20,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -44,6 +46,68 @@ static std::string resolve_path(const std::string& base, const std::string& path
     return (fs::path(base) / path).string();
 }
 
+static std::string shell_quote(const std::string& text) {
+    std::string out = "'";
+    for (char c : text) {
+        if (c == '\'') out += "'\\''";
+        else out.push_back(c);
+    }
+    out += "'";
+    return out;
+}
+
+static int run_shell_command(const std::string& cmd) {
+    const int rc = std::system(cmd.c_str());
+    if (rc == -1) return rc;
+    return rc;
+}
+
+static bool contains_job_done(const fs::path& path) {
+    std::ifstream in(path);
+    if (!in.is_open()) return false;
+    std::string line;
+    while (std::getline(in, line))
+        if (line.find("JOB DONE") != std::string::npos) return true;
+    return false;
+}
+
+static double read_total_energy_from_output(const fs::path& outPath) {
+    std::ifstream in(outPath);
+    if (!in.is_open())
+        throw std::runtime_error("Could not open SCF output: " + outPath.string());
+
+    double energy = 0.0;
+    bool found = false;
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.find('!') == std::string::npos || line.find("total energy") == std::string::npos)
+            continue;
+        std::istringstream ss(line);
+        std::string tmp;
+        ss >> tmp >> tmp >> tmp >> tmp >> energy;
+        found = true;
+    }
+    if (!found)
+        throw std::runtime_error("No total energy found in: " + outPath.string());
+    return energy;
+}
+
+static double resolve_static_energy(const std::string& energyToken,
+                                    const fs::path& scfAbs) {
+    double energy = 0.0;
+    if (try_parse_double(energyToken, energy))
+        return energy;
+
+    const fs::path volumeDir = scfAbs.parent_path();
+    const fs::path qeOut = volumeDir / "qe.out";
+    if (fs::exists(qeOut)) return read_total_energy_from_output(qeOut);
+
+    const fs::path stemOut = volumeDir / (scfAbs.stem().string() + ".out");
+    if (fs::exists(stemOut)) return read_total_energy_from_output(stemOut);
+
+    throw std::runtime_error("Energy column is not numeric and no SCF output was found for " + scfAbs.string());
+}
+
 // ── Pre-processing ─────────────────────────────────────────────────────────────
 
 void qha_elastic_generate_inputs(const std::string& qeInputPath,
@@ -51,7 +115,8 @@ void qha_elastic_generate_inputs(const std::string& qeInputPath,
                                    double rangePercent,
                                    const std::string& outDirArg,
                                    int    nDeltas,
-                                   double maxDelta) {
+                                   double maxDelta,
+                                   const DfptOptions& dfptOpts) {
     if (nVolumes < 4)
         throw std::runtime_error("QHA elastic requires at least 4 volume points.");
     if (rangePercent <= 0.0 || rangePercent >= 100.0)
@@ -196,9 +261,6 @@ void qha_elastic_generate_inputs(const std::string& qeInputPath,
 
         // DFPT phonon inputs for this volume
         const std::string dfptDir = vdir + "/dfpt";
-        DfptOptions dfptOpts;
-        dfptOpts.nq1 = 4; dfptOpts.nq2 = 4; dfptOpts.nq3 = 4;
-        dfptOpts.nqDos1 = 16; dfptOpts.nqDos2 = 16; dfptOpts.nqDos3 = 16;
         try {
             generate_phonon_inputs(scfIn, dfptDir, dfptOpts, /*verbose=*/false);
         } catch (const std::exception& e) {
@@ -257,10 +319,143 @@ void qha_elastic_generate_inputs(const std::string& qeInputPath,
               << " --tmin 0 --tmax 1500 --dt 10\n";
 }
 
+void qha_elastic_run_dataset(const std::string& datasetDir,
+                             int mpiProcesses,
+                             const std::set<std::string>& excludeVolumes) {
+    if (mpiProcesses < 1)
+        throw std::runtime_error("mpiProcesses must be >= 1.");
+
+    const fs::path dataset = fs::path(datasetDir);
+    if (!fs::is_directory(dataset))
+        throw std::runtime_error("Dataset directory not found: " + datasetDir);
+
+    std::vector<fs::path> volumes;
+    for (const auto& entry : fs::directory_iterator(dataset)) {
+        if (!entry.is_directory()) continue;
+        const std::string name = entry.path().filename().string();
+        if (name.size() >= 2 && name[0] == 'v' && std::isdigit(static_cast<unsigned char>(name[1])))
+            volumes.push_back(entry.path());
+    }
+    std::sort(volumes.begin(), volumes.end());
+    if (volumes.empty())
+        throw std::runtime_error("No v*/ directories found under: " + datasetDir);
+
+    for (const auto& vdir : volumes) {
+        const std::string vname = vdir.filename().string();
+        if (excludeVolumes.count(vname)) {
+            std::cout << "===== " << vname << " =====\n";
+            std::cout << "  skipped by --exclude\n";
+            continue;
+        }
+
+        std::cout << "===== " << vname << " =====\n";
+        fs::path scfIn;
+        for (const auto& entry : fs::directory_iterator(vdir)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".in") {
+                scfIn = entry.path();
+                break;
+            }
+        }
+        if (scfIn.empty())
+            throw std::runtime_error("No top-level SCF input found in: " + vdir.string());
+
+        const fs::path qeOut = vdir / "qe.out";
+        if (!contains_job_done(qeOut)) {
+            std::cout << "  SCF: running...\n";
+            const std::string cmd = "cd " + shell_quote(vdir.string()) +
+                " && mpirun -np " + std::to_string(mpiProcesses) +
+                " pw.x -input " + shell_quote(scfIn.filename().string()) +
+                " > qe.out 2>&1";
+            run_shell_command(cmd);
+            if (!contains_job_done(qeOut)) {
+                std::cout << "  SCF FAILED\n";
+                continue;
+            }
+            std::cout << "  SCF: done\n";
+        } else {
+            std::cout << "  SCF: done\n";
+        }
+
+        const fs::path elasticDir = vdir / "elastic";
+        for (const auto& patt : fs::directory_iterator(elasticDir)) {
+            if (!patt.is_directory()) continue;
+            for (const auto& strain : fs::directory_iterator(patt.path())) {
+                if (!strain.is_directory()) continue;
+                fs::path infile;
+                for (const auto& f : fs::directory_iterator(strain.path())) {
+                    if (f.is_regular_file() && f.path().extension() == ".in") {
+                        infile = f.path();
+                        break;
+                    }
+                }
+                if (infile.empty()) continue;
+                const fs::path outfile = infile.parent_path() / (infile.stem().string() + ".out");
+                if (contains_job_done(outfile)) continue;
+                const std::string cmd = "cd " + shell_quote(strain.path().string()) +
+                    " && mpirun -np " + std::to_string(mpiProcesses) +
+                    " pw.x < " + shell_quote(infile.filename().string()) +
+                    " > " + shell_quote(outfile.filename().string()) + " 2>&1";
+                run_shell_command(cmd);
+            }
+        }
+
+        const fs::path tmpPh = vdir / "tmp" / "_ph0";
+        fs::create_directories(tmpPh);
+        const fs::path phOut = vdir / "dfpt" / "ph.out";
+        if (!contains_job_done(phOut)) {
+            std::cout << "  DFPT: running...\n";
+            const std::string cmd = "cd " + shell_quote(vdir.string()) +
+                " && mpirun -np " + std::to_string(mpiProcesses) +
+                " ph.x -input dfpt/ph.in > dfpt/ph.out 2>&1";
+            run_shell_command(cmd);
+            if (!contains_job_done(phOut)) {
+                std::cout << "  DFPT FAILED\n";
+                continue;
+            }
+            std::cout << "  DFPT: done\n";
+        } else {
+            std::cout << "  DFPT: done\n";
+        }
+
+        const fs::path q2rOut = vdir / "dfpt" / "q2r.out";
+        if (!contains_job_done(q2rOut)) {
+            std::cout << "  q2r: running...\n";
+            const std::string cmd = "cd " + shell_quote(vdir.string()) +
+                " && q2r.x < dfpt/q2r.in > dfpt/q2r.out 2>&1";
+            run_shell_command(cmd);
+            if (!contains_job_done(q2rOut)) {
+                std::cout << "  q2r FAILED\n";
+                continue;
+            }
+            std::cout << "  q2r: done\n";
+        } else {
+            std::cout << "  q2r: done\n";
+        }
+
+        const fs::path matdynOut = vdir / "dfpt" / "matdyn_dos.out";
+        if (!contains_job_done(matdynOut)) {
+            std::cout << "  matdyn: running...\n";
+            const std::string cmd = "cd " + shell_quote(vdir.string()) +
+                " && matdyn.x < dfpt/matdyn_dos.in > dfpt/matdyn_dos.out 2>&1";
+            run_shell_command(cmd);
+            if (!contains_job_done(matdynOut)) {
+                std::cout << "  matdyn FAILED\n";
+                continue;
+            }
+            std::cout << "  matdyn: done\n";
+        } else {
+            std::cout << "  matdyn: done\n";
+        }
+
+        std::cout << "  " << vname << ": COMPLETE\n";
+    }
+}
+
 // ── Post-processing ────────────────────────────────────────────────────────────
 
 QhaElasticResult read_and_compute_qha_elastic(const std::string& summaryPath,
-                                               const std::vector<double>& tempsIn) {
+                                               const std::vector<double>& tempsIn,
+                                               const std::set<std::string>& excludeVolumes) {
     const fs::path baseDir = fs::path(summaryPath).parent_path();
 
     std::ifstream fin(summaryPath);
@@ -276,14 +471,19 @@ QhaElasticResult read_and_compute_qha_elastic(const std::string& summaryPath,
         if (t.empty() || t[0] == '#') continue;
 
         std::istringstream ss(t);
-        double vol, energy;
+        double vol;
+        std::string energyToken;
         std::string scfTemplate, elasticDir, dosPath;
-        if (!(ss >> vol >> energy >> scfTemplate >> elasticDir >> dosPath))
+        if (!(ss >> vol >> energyToken >> scfTemplate >> elasticDir >> dosPath))
             throw std::runtime_error("Malformed line in summary file: " + line);
 
         const std::string scfAbs     = resolve_path(baseDir.string(), scfTemplate);
         const std::string elasticAbs = resolve_path(baseDir.string(), elasticDir);
         const std::string dosAbs     = resolve_path(baseDir.string(), dosPath);
+        const std::string volumeName = fs::path(scfTemplate).parent_path().filename().string();
+        if (!volumeName.empty() && excludeVolumes.count(volumeName))
+            continue;
+        const double energy = resolve_static_energy(energyToken, fs::path(scfAbs));
 
         // --- Elastic C_ij at this volume ---
         std::cout << "  Computing elastic constants for V = " << std::fixed
