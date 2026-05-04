@@ -11,6 +11,39 @@
 
 namespace qe {
 
+namespace {
+
+QeParallelOptions parse_parallel_options(int argc, char** argv, int start, std::set<std::string>* excludeVolumes = nullptr) {
+    QeParallelOptions opts;
+    for (int i = start; i < argc; ++i) {
+        const std::string arg = argv[i];
+        auto nextInt = [&](const std::string& flag) -> int {
+            if (i + 1 >= argc)
+                throw std::runtime_error(flag + " requires an integer value.");
+            return std::stoi(argv[++i]);
+        };
+        if      (arg == "--np") opts.np = nextInt(arg);
+        else if (arg == "--ni") opts.ni = nextInt(arg);
+        else if (arg == "--nk") opts.nk = nextInt(arg);
+        else if (arg == "--nb") opts.nb = nextInt(arg);
+        else if (arg == "--nt") opts.nt = nextInt(arg);
+        else if (arg == "--nd") opts.nd = nextInt(arg);
+        else if (arg == "--exclude") {
+            if (excludeVolumes == nullptr || i + 1 >= argc)
+                throw std::runtime_error("--exclude requires a comma-separated list.");
+            for (const auto& tok : split_csv(argv[++i])) {
+                const std::string t = trim(tok);
+                if (!t.empty()) excludeVolumes->insert(t);
+            }
+        } else {
+            throw std::runtime_error("Unknown argument for 'qha_elastic -run': " + arg);
+        }
+    }
+    return opts;
+}
+
+}  // namespace
+
 // ── qepp qha_elastic -pre <scf.in> [options] ─────────────────────────────────
 //   --nvolumes N    number of volumes      (default 7)
 //   --range R       total volume range %   (default 10)
@@ -77,31 +110,9 @@ int handle_qha_elastic_run_mode(int argc, char** argv, int s) {
     }
 
     const std::string datasetDir = argv[2 + s];
-    int mpiProcesses = 1;
     std::set<std::string> excludeVolumes;
-
-    for (int i = 3 + s; i < argc; ++i) {
-        const std::string arg = argv[i];
-        auto nextInt = [&](const std::string& flag) -> int {
-            if (i + 1 >= argc)
-                throw std::runtime_error(flag + " requires an integer value.");
-            return std::stoi(argv[++i]);
-        };
-        if (arg == "--np") {
-            mpiProcesses = nextInt(arg);
-        } else if (arg == "--exclude") {
-            if (i + 1 >= argc)
-                throw std::runtime_error("--exclude requires a comma-separated list.");
-            for (const auto& tok : split_csv(argv[++i])) {
-                const std::string t = trim(tok);
-                if (!t.empty()) excludeVolumes.insert(t);
-            }
-        } else {
-            throw std::runtime_error("Unknown argument for 'qha_elastic -run': " + arg);
-        }
-    }
-
-    qha_elastic_run_dataset(datasetDir, mpiProcesses, excludeVolumes);
+    const QeParallelOptions parallel = parse_parallel_options(argc, argv, 3 + s, &excludeVolumes);
+    qha_elastic_run_dataset(datasetDir, parallel, excludeVolumes);
     return 0;
 }
 

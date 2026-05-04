@@ -1,6 +1,8 @@
 #include "qe/elastic.hpp"
 
 #include <cmath>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -11,6 +13,30 @@
 #include "qe/utils.hpp"
 
 namespace qe {
+
+namespace {
+
+std::string shell_quote(const std::string& text) {
+   std::string out = "'";
+   for (char c : text) {
+      if (c == '\'') out += "'\\''";
+      else out.push_back(c);
+   }
+   out += "'";
+   return out;
+}
+
+bool contains_job_done(const std::filesystem::path& path) {
+   std::ifstream in(path);
+   if (!in.is_open()) return false;
+   std::string line;
+   while (std::getline(in, line)) {
+      if (line.find("JOB DONE") != std::string::npos) return true;
+   }
+   return false;
+}
+
+}  // namespace
 
 static constexpr double kRyToEv = 13.605693122;
 
@@ -37,6 +63,64 @@ double extract_total_energy(const std::string& path) {
       throw std::runtime_error("Total energy not found in: " + path);
    return energy;
 }
+
+   void run_elastic_dataset(const std::string& scfTemplatePath,
+                      const std::string& outDir,
+                      const QeParallelOptions& parallel) {
+      namespace fs = std::filesystem;
+
+      const fs::path tmpl(scfTemplatePath);
+      const fs::path root(outDir);
+      if (!fs::exists(tmpl))
+         throw std::runtime_error("SCF template not found: " + scfTemplatePath);
+      if (!fs::is_directory(root))
+         throw std::runtime_error("Elastic directory not found: " + outDir);
+
+      const std::string launch = qe_parallel_args(parallel);
+      const fs::path eqOut = tmpl.parent_path() / "qe.out";
+      if (!contains_job_done(eqOut)) {
+         std::cout << "Equilibrium SCF: running...\n";
+         const std::string cmd = "cd " + shell_quote(tmpl.parent_path().string()) +
+            " && " + launch + " pw.x -input " + shell_quote(tmpl.filename().string()) +
+            " > qe.out 2>&1";
+         const int rc = std::system(cmd.c_str());
+         (void)rc;
+         if (!contains_job_done(eqOut))
+            throw std::runtime_error("Equilibrium SCF failed: " + eqOut.string());
+         std::cout << "Equilibrium SCF: done\n";
+      } else {
+         std::cout << "Equilibrium SCF: done\n";
+      }
+
+      for (const auto& patt : fs::directory_iterator(root)) {
+         if (!patt.is_directory()) continue;
+         for (const auto& strain : fs::directory_iterator(patt.path())) {
+            if (!strain.is_directory()) continue;
+
+            fs::path infile;
+            for (const auto& file : fs::directory_iterator(strain.path())) {
+               if (file.is_regular_file() && file.path().extension() == ".in") {
+                  infile = file.path();
+                  break;
+               }
+            }
+            if (infile.empty()) continue;
+
+            const fs::path outfile = strain.path() / (infile.stem().string() + ".out");
+            if (contains_job_done(outfile)) continue;
+
+            std::cout << "Running " << patt.path().filename().string()
+                    << "/" << strain.path().filename().string() << "...\n";
+            const std::string cmd = "cd " + shell_quote(strain.path().string()) +
+               " && " + launch + " pw.x < " + shell_quote(infile.filename().string()) +
+               " > " + shell_quote(outfile.filename().string()) + " 2>&1";
+            const int rc = std::system(cmd.c_str());
+            (void)rc;
+            if (!contains_job_done(outfile))
+               throw std::runtime_error("Elastic strain SCF failed: " + outfile.string());
+         }
+      }
+   }
 
 void print_elastic_report(const ElasticResults& res,
                           const std::string& crystalFamily,

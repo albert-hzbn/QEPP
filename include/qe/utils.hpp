@@ -1,9 +1,19 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace qe {
+
+struct QeParallelOptions {
+    int np = 1;
+    std::optional<int> ni;
+    std::optional<int> nk;
+    std::optional<int> nb;
+    std::optional<int> nt;
+    std::optional<int> nd;
+};
 
 std::string trim(const std::string& s);
 std::string strip_quotes(const std::string& s);
@@ -19,6 +29,7 @@ std::string extract_quoted_assignment(const std::vector<std::string>& lines,
                                       const std::string& keyLower);
 bool is_directory(const std::string& path);
 std::string join_paths(const std::string& base, const std::string& leaf);
+std::string qe_parallel_args(const QeParallelOptions& opts);
 
 // Return atomic mass in amu for an element symbol; returns 28.085 (Si) if unknown.
 double atomic_mass(const std::string& symbol);

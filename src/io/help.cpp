@@ -8,8 +8,9 @@ void print_help(const char* prog) {
         "\n"
         "USAGE\n"
         "  " << prog << " <command> -pre  [arguments]   (pre-processing)\n"
+        "  " << prog << " <command> -run  [arguments]   (workflow execution)\n"
         "  " << prog << " <command> -post [arguments]   (post-processing)\n"
-        "  " << prog << " help [command] [-pre|-post]\n"
+        "  " << prog << " help [command] [-pre|-run|-post]\n"
         "\n"
         "COMMANDS\n"
         "  cif     -pre   Generate a QE SCF input from a CIF file\n"
@@ -18,6 +19,7 @@ void print_help(const char* prog) {
         "  band    -post  Plot band structure from a QE bands.x output\n"
         "  kpath   -pre   Suggest a high-symmetry k-path from a CIF file\n"
         "  elastic -pre   Generate deformed SCF inputs for elastic constants\n"
+        "  elastic -run   Run equilibrium + strained SCF jobs for elastic constants\n"
         "  elastic -post  Collect energies and compute elastic constants\n"
         "  charge  -pre   Generate pp.x inputs for charge density / charge diff / ELF\n"
         "  charge  -post  Plot volumetric data from a cube file\n"
@@ -31,6 +33,9 @@ void print_help(const char* prog) {
         "  parse   -post  Extract energy, Fermi level, forces, pressure, timing from QE output\n"
         "  qha     -pre   Generate scaled SCF inputs for quasi-harmonic approximation\n"
         "  qha     -post  Compute QHA thermal properties from phonopy yamls + DFT energies\n"
+        "  qha_elastic -pre   Generate volume-scaled elastic + DFPT inputs\n"
+        "  qha_elastic -run   Run the generated QHA elastic workflow\n"
+        "  qha_elastic -post  Compute temperature-dependent elastic constants\n"
         "  phonon  -pre   Generate DFPT phonon inputs (ph.x, q2r.x, matdyn.x)\n"
         "  phonon  -post  Post-process DFPT matdyn.x output (DOS, band, HA)\n"
         "  phonon  -dos   Plot phonon DOS (phonopy or matdyn.x format)\n"
@@ -263,6 +268,28 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "NOTE\n"
                 "  Crystal symmetry is detected automatically (spglib if available, else ibrav).\n"
                 "  Only the symmetry-independent strain patterns are generated.\n";
+        } else if (sub == "-run") {
+            std::cout <<
+                "DESCRIPTION\n"
+                "  Run the 0 K elastic workflow created by 'elastic -pre'. This first runs\n"
+                "  the equilibrium SCF template as qe.out, then runs every strained pw.x job\n"
+                "  under <outdir>. Existing outputs containing JOB DONE are skipped.\n"
+                "\n"
+                "USAGE\n"
+                "  " << prog << " elastic -run <scf_template.in> <outdir>\n"
+                "                     [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N]\n"
+                "\n"
+                "OPTIONS\n"
+                "  --np N   MPI ranks passed to mpirun (default: 1)\n"
+                "  --ni N   QE image groups   (-ni)\n"
+                "  --nk N   QE k-point pools  (-nk)\n"
+                "  --nb N   QE band groups    (-nb)\n"
+                "  --nt N   QE task groups    (-nt)\n"
+                "  --nd N   QE diagonalization groups (-nd)\n"
+                "\n"
+                "EXAMPLES\n"
+                "  " << prog << " elastic -run si.scf.in elastic_si --np 16 --nk 4\n"
+                "  " << prog << " elastic -run si.scf.in elastic_si --np 32 --nk 4 --nb 2 --nd 4\n";
         } else if (sub == "-post") {
             std::cout <<
                 "DESCRIPTION\n"
@@ -292,14 +319,15 @@ void print_help_command(const char* prog, const std::string& cmd,
             std::cout <<
                 "USAGE\n"
                 "  " << prog << " elastic -pre  <scf_template.in> <outdir> [ndeltas] [max_delta]\n"
+                "  " << prog << " elastic -run  <scf_template.in> <outdir> [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N]\n"
                 "  " << prog << " elastic -post <scf_template.in> <outdir>\n"
                 "\n"
                 "WORKFLOW\n"
                 "  1. " << prog << " elastic -pre  si.scf.in elastic_si\n"
-                "  2. for d in elastic_si/*/*/; do (cd \"$d\" && pw.x < si.in > si.out); done\n"
+                "  2. " << prog << " elastic -run  si.scf.in elastic_si --np 16 --nk 4\n"
                 "  3. " << prog << " elastic -post si.scf.in elastic_si\n"
                 "\n"
-                "Run '" << prog << " elastic -pre --help' or '" << prog << " elastic -post --help' for details.\n";
+                "Run '" << prog << " elastic -pre --help', '" << prog << " elastic -run --help', or '" << prog << " elastic -post --help' for details.\n";
         }
     }
     else if (cmd == "charge") {
@@ -813,15 +841,22 @@ void print_help_command(const char* prog, const std::string& cmd,
                 "  Existing stages containing JOB DONE are skipped automatically.\n"
                 "\n"
                 "USAGE\n"
-                "  " << prog << " qha_elastic -run <dataset_dir> [--np N] [--exclude v04,v07]\n"
+                "  " << prog << " qha_elastic -run <dataset_dir>\n"
+                "                     [--np N] [--ni N] [--nk N] [--nb N] [--nt N] [--nd N]\n"
+                "                     [--exclude v04,v07]\n"
                 "\n"
                 "OPTIONS\n"
-                "  --np N          MPI process count passed to pw.x/ph.x (default: 1)\n"
+                "  --np N          MPI ranks passed to mpirun (default: 1)\n"
+                "  --ni N          QE image groups   (-ni)\n"
+                "  --nk N          QE k-point pools  (-nk)\n"
+                "  --nb N          QE band groups    (-nb)\n"
+                "  --nt N          QE task groups    (-nt)\n"
+                "  --nd N          QE diagonalization groups (-nd)\n"
                 "  --exclude LIST  Comma-separated volume directories to skip\n"
                 "\n"
                 "EXAMPLES\n"
-                "  " << prog << " qha_elastic -run si_qha_el --np 20\n"
-                "  " << prog << " qha_elastic -run si_qha_el --np 20 --exclude v04\n";
+                "  " << prog << " qha_elastic -run si_qha_el --np 20 --nk 4\n"
+                "  " << prog << " qha_elastic -run si_qha_el --np 20 --nk 4 --nb 2 --nd 5 --exclude v04\n";
         }
         if (sub.empty() || sub == "-post") {
             std::cout <<

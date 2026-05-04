@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <sstream>
 #include <stdexcept>
 
 namespace qe {
@@ -152,6 +153,17 @@ bool is_directory(const std::string& path) {
 
 std::string join_paths(const std::string& base, const std::string& leaf) {
     return (std::filesystem::path(base) / leaf).string();
+}
+
+std::string qe_parallel_args(const QeParallelOptions& opts) {
+    std::ostringstream ss;
+    ss << "mpirun -np " << opts.np;
+    if (opts.ni) ss << " -ni " << *opts.ni;
+    if (opts.nk) ss << " -nk " << *opts.nk;
+    if (opts.nb) ss << " -nb " << *opts.nb;
+    if (opts.nt) ss << " -nt " << *opts.nt;
+    if (opts.nd) ss << " -nd " << *opts.nd;
+    return ss.str();
 }
 
 std::string extract_quoted_assignment(const std::vector<std::string>& lines,

@@ -79,6 +79,7 @@ int dispatch_cli(int argc, char** argv) {
     }
     if (mode == "elastic") {
         if (sub == "-pre") return qe::handle_elastic_pre_mode(argc, argv, 1);
+        if (sub == "-run") return qe::handle_elastic_run_mode(argc, argv, 1);
         if (sub == "-post") return qe::handle_elastic_post_mode(argc, argv, 1);
         print_help_command(argv[0], "elastic", "");
         return 1;

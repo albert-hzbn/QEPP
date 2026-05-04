@@ -113,7 +113,7 @@ void qha_elastic_generate_inputs(const std::string& qeInputPath,
 // qha_elastic dataset directory. Completed stages are skipped automatically.
 // excludeVolumes contains volume directory names such as v04.
 void qha_elastic_run_dataset(const std::string& datasetDir,
-                             int mpiProcesses = 1,
+                             const QeParallelOptions& parallel = {},
                              const std::set<std::string>& excludeVolumes = {});
 
 // ── Post-processing ────────────────────────────────────────────────────────────

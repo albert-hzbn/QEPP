@@ -320,10 +320,10 @@ void qha_elastic_generate_inputs(const std::string& qeInputPath,
 }
 
 void qha_elastic_run_dataset(const std::string& datasetDir,
-                             int mpiProcesses,
+                             const QeParallelOptions& parallel,
                              const std::set<std::string>& excludeVolumes) {
-    if (mpiProcesses < 1)
-        throw std::runtime_error("mpiProcesses must be >= 1.");
+    if (parallel.np < 1)
+        throw std::runtime_error("--np must be >= 1.");
 
     const fs::path dataset = fs::path(datasetDir);
     if (!fs::is_directory(dataset))
@@ -339,6 +339,8 @@ void qha_elastic_run_dataset(const std::string& datasetDir,
     std::sort(volumes.begin(), volumes.end());
     if (volumes.empty())
         throw std::runtime_error("No v*/ directories found under: " + datasetDir);
+
+    const std::string launch = qe_parallel_args(parallel);
 
     for (const auto& vdir : volumes) {
         const std::string vname = vdir.filename().string();
@@ -363,8 +365,7 @@ void qha_elastic_run_dataset(const std::string& datasetDir,
         if (!contains_job_done(qeOut)) {
             std::cout << "  SCF: running...\n";
             const std::string cmd = "cd " + shell_quote(vdir.string()) +
-                " && mpirun -np " + std::to_string(mpiProcesses) +
-                " pw.x -input " + shell_quote(scfIn.filename().string()) +
+                " && " + launch + " pw.x -input " + shell_quote(scfIn.filename().string()) +
                 " > qe.out 2>&1";
             run_shell_command(cmd);
             if (!contains_job_done(qeOut)) {
@@ -392,8 +393,7 @@ void qha_elastic_run_dataset(const std::string& datasetDir,
                 const fs::path outfile = infile.parent_path() / (infile.stem().string() + ".out");
                 if (contains_job_done(outfile)) continue;
                 const std::string cmd = "cd " + shell_quote(strain.path().string()) +
-                    " && mpirun -np " + std::to_string(mpiProcesses) +
-                    " pw.x < " + shell_quote(infile.filename().string()) +
+                    " && " + launch + " pw.x < " + shell_quote(infile.filename().string()) +
                     " > " + shell_quote(outfile.filename().string()) + " 2>&1";
                 run_shell_command(cmd);
             }
@@ -405,8 +405,7 @@ void qha_elastic_run_dataset(const std::string& datasetDir,
         if (!contains_job_done(phOut)) {
             std::cout << "  DFPT: running...\n";
             const std::string cmd = "cd " + shell_quote(vdir.string()) +
-                " && mpirun -np " + std::to_string(mpiProcesses) +
-                " ph.x -input dfpt/ph.in > dfpt/ph.out 2>&1";
+                " && " + launch + " ph.x -input dfpt/ph.in > dfpt/ph.out 2>&1";
             run_shell_command(cmd);
             if (!contains_job_done(phOut)) {
                 std::cout << "  DFPT FAILED\n";
@@ -421,7 +420,7 @@ void qha_elastic_run_dataset(const std::string& datasetDir,
         if (!contains_job_done(q2rOut)) {
             std::cout << "  q2r: running...\n";
             const std::string cmd = "cd " + shell_quote(vdir.string()) +
-                " && q2r.x < dfpt/q2r.in > dfpt/q2r.out 2>&1";
+                " && " + launch + " q2r.x < dfpt/q2r.in > dfpt/q2r.out 2>&1";
             run_shell_command(cmd);
             if (!contains_job_done(q2rOut)) {
                 std::cout << "  q2r FAILED\n";
@@ -436,7 +435,7 @@ void qha_elastic_run_dataset(const std::string& datasetDir,
         if (!contains_job_done(matdynOut)) {
             std::cout << "  matdyn: running...\n";
             const std::string cmd = "cd " + shell_quote(vdir.string()) +
-                " && matdyn.x < dfpt/matdyn_dos.in > dfpt/matdyn_dos.out 2>&1";
+                " && " + launch + " matdyn.x < dfpt/matdyn_dos.in > dfpt/matdyn_dos.out 2>&1";
             run_shell_command(cmd);
             if (!contains_job_done(matdynOut)) {
                 std::cout << "  matdyn FAILED\n";

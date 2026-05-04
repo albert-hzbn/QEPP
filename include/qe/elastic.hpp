@@ -1,5 +1,6 @@
 #pragma once
 
+#include "qe/utils.hpp"
 #include <string>
 
 #include "qe/types.hpp"
@@ -22,6 +23,13 @@ void generate_elastic_inputs(const std::string& scfTemplatePath,
                               const std::string& outDir,
                               int nDeltas = 7,
                               double maxDelta = 0.04);
+
+// Run the 0 K elastic workflow created by elastic -pre.
+// Executes the equilibrium SCF template first, then all strained SCF jobs.
+// Existing outputs containing JOB DONE are skipped automatically.
+void run_elastic_dataset(const std::string& scfTemplatePath,
+                         const std::string& outDir,
+                         const QeParallelOptions& parallel = {});
 
 // ── Post-processing ───────────────────────────────────────────────────────────
 // Collect total energies from QE output files under <outDir>, fit E(δ) curves,
