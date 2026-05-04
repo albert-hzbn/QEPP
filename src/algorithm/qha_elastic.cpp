@@ -53,7 +53,7 @@ static std::array<double, 4> fit_cubic(const std::vector<double>& x,
         A(i, 3) = x[i] * x[i] * x[i];
         b(i)    = y[i];
     }
-    const auto c = A.colPivHouseholderQr().solve(b);
+    const Eigen::VectorXd c = A.colPivHouseholderQr().solve(b);
     return {c[0], c[1], c[2], c[3]};
 }
 
